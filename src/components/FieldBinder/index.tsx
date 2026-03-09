@@ -1,4 +1,4 @@
-import { Select, Typography, Tag } from '@douyinfe/semi-ui'
+import { Select, Typography } from '@douyinfe/semi-ui'
 import type { useCanvas } from '../../hooks/useCanvas'
 import type { PlaceholderObject } from '../../hooks/useCanvas'
 import type { FieldMeta } from '../../types'
@@ -56,9 +56,9 @@ export function FieldBinder({ canvasHook, textFields, imageFields }: FieldBinder
               }}
             >
               <div className="binding-row-label">
-                <Tag size="small" color={isText ? 'blue' : 'green'} style={{ marginRight: 4 }}>
-                  {isText ? 'T' : 'IMG'}
-                </Tag>
+                <span className={`binding-type-indicator ${isText ? 'type-text' : 'type-image'}`}>
+                  {isText ? 'T' : 'I'}
+                </span>
                 <Text
                   ellipsis={{ showTooltip: true }}
                   style={{ maxWidth: 80, fontSize: 12 }}

@@ -313,30 +313,25 @@ body {
 .binding-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
 }
 
 .binding-row {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  padding: 6px var(--sp-2);
-  border-radius: var(--r-md);
+  padding: 5px var(--sp-2);
+  border-radius: var(--r-sm);
   cursor: pointer;
-  transition: all 0.15s ease;
-  border: 1px solid var(--border);
-  background: var(--surface-card);
+  transition: background 0.12s ease;
 }
 
 .binding-row:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-xs);
+  background: var(--surface-inset);
 }
 
 .binding-row-active {
-  border-color: rgba(99, 102, 241, 0.3) !important;
   background: var(--accent-ghost) !important;
-  box-shadow: var(--shadow-focus) !important;
 }
 
 .binding-row-label {
@@ -346,17 +341,30 @@ body {
   flex: 0 0 auto;
   max-width: 90px;
   overflow: hidden;
-  gap: 4px;
+  gap: 6px;
 }
 
-.binding-row-label .semi-tag {
-  border-radius: 4px !important;
-  font-size: 10px !important;
-  font-weight: 700 !important;
-  padding: 0 5px !important;
-  height: 18px !important;
-  line-height: 18px !important;
+.binding-type-indicator {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
   letter-spacing: 0.02em;
+}
+
+.binding-type-indicator.type-text {
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--accent);
+}
+
+.binding-type-indicator.type-image {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10B981;
 }
 
 .binding-row .semi-select {

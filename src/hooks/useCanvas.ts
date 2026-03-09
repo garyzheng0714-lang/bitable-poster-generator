@@ -26,6 +26,15 @@ async function loadWithReviver(
       ;(instance as PlaceholderObject).placeholderLabel = _serialized.placeholderLabel
       ;(instance as PlaceholderObject).binding = _serialized.binding ?? null
     }
+    if (_serialized.placeholderType === 'text') {
+      instance.set({ lockUniScaling: true })
+      ;(instance as any).setControlsVisibility?.({
+        mt: false,
+        mb: false,
+        ml: false,
+        mr: false,
+      })
+    }
     if (_serialized._isBg) {
       ;(instance as any)._isBg = true
       instance.set({ selectable: false, evented: false })
@@ -107,7 +116,22 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
       setActiveObject(null)
     })
 
-    c.on('object:modified', () => saveHistory(c))
+    c.on('object:modified', (e) => {
+      const target = e.target as PlaceholderObject
+      if (target?.placeholderType === 'text') {
+        const textObj = target as unknown as fabric.IText
+        const sx = textObj.scaleX ?? 1
+        const sy = textObj.scaleY ?? 1
+        if (sx !== 1 || sy !== 1) {
+          const fontSize = textObj.fontSize ?? 36
+          const newSize = Math.round(fontSize * Math.max(sx, sy))
+          textObj.set({ fontSize: newSize, scaleX: 1, scaleY: 1 })
+          textObj.setCoords()
+          c.renderAll()
+        }
+      }
+      saveHistory(c)
+    })
     c.on('object:added', () => {
       if (!skipSaveRef.current) saveHistory(c)
       refreshPlaceholders()
@@ -245,7 +269,15 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
       fill: '#333333',
       editable: true,
       padding: 8,
+      lockUniScaling: true,
     }) as PlaceholderObject
+
+    ;(text as unknown as fabric.IText).setControlsVisibility({
+      mt: false,
+      mb: false,
+      ml: false,
+      mr: false,
+    })
 
     text.placeholderId = id
     text.placeholderType = 'text'
