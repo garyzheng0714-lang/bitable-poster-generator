@@ -103,7 +103,69 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
       preserveObjectStacking: true,
     })
 
+    // Figma-style selection controls
+    fabric.FabricObject.prototype.set({
+      borderColor: '#0d99ff',
+      borderScaleFactor: 1,
+      cornerColor: '#ffffff',
+      cornerStrokeColor: '#0d99ff',
+      cornerSize: 8,
+      cornerStyle: 'rect',
+      transparentCorners: false,
+      padding: 0,
+    })
+    // Rotation snapping: snap to 0°, 45°, 90°, etc.
+    fabric.FabricObject.prototype.snapAngle = 45
+    fabric.FabricObject.prototype.snapThreshold = 5
+
     setupGuidelines(c)
+
+    // --- Rotation angle indicator ---
+    let isRotating = false
+    let rotationAngle = 0
+    let rotationTarget: fabric.FabricObject | null = null
+
+    c.on('object:rotating', (e) => {
+      isRotating = true
+      rotationAngle = Math.round(e.target?.angle ?? 0)
+      rotationTarget = e.target ?? null
+    })
+
+    const clearRotationState = () => {
+      if (isRotating) {
+        isRotating = false
+        rotationTarget = null
+        c.requestRenderAll()
+      }
+    }
+    c.on('mouse:up', clearRotationState)
+
+    c.on('after:render', () => {
+      if (!isRotating || !rotationTarget) return
+      const ctx = c.getContext()
+      const bound = rotationTarget.getBoundingRect()
+      const text = `${rotationAngle}°`
+
+      ctx.save()
+      ctx.font = '600 11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+      const metrics = ctx.measureText(text)
+      const pw = 8
+      const bw = metrics.width + pw * 2
+      const bh = 22
+      const x = bound.left + bound.width / 2
+      const y = bound.top - 12
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
+      ctx.beginPath()
+      ctx.roundRect(x - bw / 2, y - bh, bw, bh, 4)
+      ctx.fill()
+
+      ctx.fillStyle = '#ffffff'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(text, x, y - bh / 2)
+      ctx.restore()
+    })
 
     c.on('selection:created', (e) => {
       setActiveObject((e.selected?.[0] as PlaceholderObject) ?? null)
