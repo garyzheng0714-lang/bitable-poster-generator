@@ -103,16 +103,17 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
       preserveObjectStacking: true,
     })
 
-    // Figma-style selection controls
+    // Selection controls: dashed border + circle handles
     fabric.FabricObject.prototype.set({
-      borderColor: '#0d99ff',
+      borderColor: 'rgba(0, 0, 0, 0.4)',
       borderScaleFactor: 1,
+      borderDashArray: [4, 4],
       cornerColor: '#ffffff',
-      cornerStrokeColor: '#0d99ff',
-      cornerSize: 8,
-      cornerStyle: 'rect',
+      cornerStrokeColor: 'rgba(0, 0, 0, 0.5)',
+      cornerSize: 10,
+      cornerStyle: 'circle',
       transparentCorners: false,
-      padding: 0,
+      padding: 2,
     })
     // Rotation snapping: snap to 0°, 45°, 90°, etc.
     fabric.FabricObject.prototype.snapAngle = 45
