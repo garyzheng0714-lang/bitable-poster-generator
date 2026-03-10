@@ -301,43 +301,26 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     const w = 200
     const h = 200
 
-    const group = new fabric.Group(
-      [
-        new fabric.Rect({
-          width: w,
-          height: h,
-          fill: 'rgba(99, 102, 241, 0.04)',
-          stroke: 'rgba(99, 102, 241, 0.25)',
-          strokeWidth: 1,
-          strokeDashArray: [6, 3],
-          rx: 4,
-          ry: 4,
-        }),
-        new fabric.FabricText('IMG', {
-          fontSize: 14,
-          fill: 'rgba(99, 102, 241, 0.35)',
-          originX: 'center',
-          originY: 'center',
-          top: 0,
-          left: 0,
-          fontFamily: '-apple-system, system-ui, sans-serif',
-          fontWeight: '600',
-        }),
-      ],
-      {
-        left: templateSize.width / 2 - w / 2 + offset,
-        top: templateSize.height / 2 - h / 2 + offset,
-        padding: 4,
-      },
-    ) as unknown as PlaceholderObject
+    const rect = new fabric.Rect({
+      left: templateSize.width / 2 - w / 2 + offset,
+      top: templateSize.height / 2 - h / 2 + offset,
+      width: w,
+      height: h,
+      fill: 'rgba(0, 0, 0, 0.03)',
+      stroke: 'rgba(0, 0, 0, 0.12)',
+      strokeWidth: 1,
+      rx: 2,
+      ry: 2,
+      padding: 4,
+    }) as unknown as PlaceholderObject
 
-    group.placeholderId = id
-    group.placeholderType = 'image'
-    group.placeholderLabel = 'Image'
-    group.binding = null
+    rect.placeholderId = id
+    rect.placeholderType = 'image'
+    rect.placeholderLabel = 'Image'
+    rect.binding = null
 
-    c.add(group)
-    c.setActiveObject(group)
+    c.add(rect)
+    c.setActiveObject(rect)
     c.renderAll()
   }, [templateSize, getPlaceholderOffset])
 
