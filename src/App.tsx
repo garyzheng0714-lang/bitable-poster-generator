@@ -19,17 +19,14 @@ export default function App() {
   const canvasHook = useCanvas(containerRef)
   const [activeTab, setActiveTab] = useState('fields')
 
-  if (bitableHook.loading) {
-    return (
-      <div className="app-loading">
-        <Spin size="large" />
-        <p>加载中...</p>
-      </div>
-    )
-  }
-
   return (
     <div className="app">
+      {bitableHook.loading && (
+        <div className="app-loading-overlay">
+          <Spin size="large" />
+          <p>加载中...</p>
+        </div>
+      )}
       <div className="app-header">
         <div className="header-left">
           <div className="header-accent" />

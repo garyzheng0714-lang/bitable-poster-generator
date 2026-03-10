@@ -35,6 +35,7 @@ export function useBitable() {
   const [loading, setLoading] = useState(true)
   const [isStandalone, setIsStandalone] = useState(false)
   const currentTableIdRef = useRef<string | null>(null)
+  const fieldsLoadedRef = useRef(false)
 
   const loadTable = useCallback(async (initial = false) => {
     try {
@@ -71,7 +72,7 @@ export function useBitable() {
       currentTableIdRef.current = newTableId
       setTable(activeTable)
 
-      if (tableChanged || fields.length === 0) {
+      if (tableChanged || !fieldsLoadedRef.current) {
         const metaList: IFieldMeta[] = await activeTable.getFieldMetaList()
         const fieldMetas: FieldMeta[] = metaList.map((m) => ({
           id: m.id,
@@ -79,6 +80,7 @@ export function useBitable() {
           type: m.type,
         }))
         setFields(fieldMetas)
+        fieldsLoadedRef.current = true
       }
     } catch (err) {
       console.warn('Bitable SDK unavailable, running in standalone mode', err)
@@ -86,7 +88,7 @@ export function useBitable() {
     } finally {
       if (initial) setLoading(false)
     }
-  }, [fields.length])
+  }, [])
 
   useEffect(() => {
     loadTable(true)

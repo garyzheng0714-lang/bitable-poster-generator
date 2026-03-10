@@ -96,14 +96,17 @@ body {
   background: var(--surface-base);
 }
 
-.app-loading {
+.app-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100vh;
   gap: var(--sp-3);
   color: var(--ink-tertiary);
+  background: var(--surface-base);
 }
 
 /* ── Header (compact) ── */
