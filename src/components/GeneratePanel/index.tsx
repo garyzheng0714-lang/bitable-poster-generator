@@ -180,7 +180,6 @@ export function GeneratePanel({ canvasHook, bitableHook }: GeneratePanelProps) {
           value={mode}
           onChange={(e) => setMode(e.target.value as GenerateMode)}
           direction="horizontal"
-          size="small"
         >
           <Radio value="selected">选中行</Radio>
           <Radio value="all">全部行</Radio>
@@ -194,7 +193,6 @@ export function GeneratePanel({ canvasHook, bitableHook }: GeneratePanelProps) {
           onChange={(e) => setOutputMode(e.target.value as OutputMode)}
           direction="horizontal"
           type="button"
-          size="small"
         >
           <Radio value="download">下载</Radio>
           <Radio value="attachment">写入表格</Radio>
