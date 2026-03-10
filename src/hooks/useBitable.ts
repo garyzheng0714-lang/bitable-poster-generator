@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   bitable,
   FieldType,
@@ -34,12 +34,12 @@ export function useBitable() {
   const [fields, setFields] = useState<FieldMeta[]>([])
   const [loading, setLoading] = useState(true)
   const [isStandalone, setIsStandalone] = useState(false)
+  const currentTableIdRef = useRef<string | null>(null)
 
-  const loadTable = useCallback(async () => {
+  const loadTable = useCallback(async (initial = false) => {
     try {
-      setLoading(true)
+      if (initial) setLoading(true)
 
-      // timeout guard for standalone dev mode
       const selection = await Promise.race([
         bitable.base.getSelection(),
         new Promise<null>((_, reject) =>
@@ -66,30 +66,35 @@ export function useBitable() {
         return
       }
 
+      const newTableId = activeTable.id ?? null
+      const tableChanged = newTableId !== currentTableIdRef.current
+      currentTableIdRef.current = newTableId
       setTable(activeTable)
 
-      const metaList: IFieldMeta[] = await activeTable.getFieldMetaList()
-      const fieldMetas: FieldMeta[] = metaList.map((m) => ({
-        id: m.id,
-        name: m.name,
-        type: m.type,
-      }))
-      setFields(fieldMetas)
+      if (tableChanged || fields.length === 0) {
+        const metaList: IFieldMeta[] = await activeTable.getFieldMetaList()
+        const fieldMetas: FieldMeta[] = metaList.map((m) => ({
+          id: m.id,
+          name: m.name,
+          type: m.type,
+        }))
+        setFields(fieldMetas)
+      }
     } catch (err) {
       console.warn('Bitable SDK unavailable, running in standalone mode', err)
       setIsStandalone(true)
     } finally {
-      setLoading(false)
+      if (initial) setLoading(false)
     }
-  }, [])
+  }, [fields.length])
 
   useEffect(() => {
-    loadTable()
+    loadTable(true)
 
     let off: (() => void) | undefined
     try {
       off = bitable.base.onSelectionChange(() => {
-        loadTable()
+        loadTable(false)
       })
     } catch {
       // standalone mode
