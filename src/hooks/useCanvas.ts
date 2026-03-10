@@ -104,7 +104,9 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     })
 
     // Selection controls: dashed border + circle handles
-    fabric.FabricObject.prototype.set({
+    // Must use ownDefaults (not prototype.set) because Fabric.js v6
+    // uses Object.assign(this, ownDefaults) in constructors
+    Object.assign(fabric.InteractiveFabricObject.ownDefaults, {
       borderColor: 'rgba(0, 0, 0, 0.4)',
       borderScaleFactor: 1,
       borderDashArray: [4, 4],
@@ -114,10 +116,9 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
       cornerStyle: 'circle',
       transparentCorners: false,
       padding: 2,
+      snapAngle: 45,
+      snapThreshold: 5,
     })
-    // Rotation snapping: snap to 0°, 45°, 90°, etc.
-    fabric.FabricObject.prototype.snapAngle = 45
-    fabric.FabricObject.prototype.snapThreshold = 5
 
     setupGuidelines(c)
 
