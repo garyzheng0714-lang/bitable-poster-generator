@@ -3,7 +3,6 @@ import {
   Button,
   RadioGroup,
   Radio,
-  Typography,
   Progress,
   Toast,
   Select,
@@ -14,8 +13,6 @@ import type { useCanvas } from '../../hooks/useCanvas'
 import type { useBitable } from '../../hooks/useBitable'
 import { generatePosterForRecord, downloadBlob, dataUrlToBlob } from '../../services/posterGenerator'
 import type { GenerateMode, GenerateProgress } from '../../types'
-
-const { Title } = Typography
 
 type OutputMode = 'download' | 'attachment'
 
@@ -160,35 +157,30 @@ export function GeneratePanel({ canvasHook, bitableHook }: GeneratePanelProps) {
     cancelledRef.current = true
   }
 
-  // Standalone mode: simple export
   if (isStandalone) {
     return (
-      <div className="panel-section">
-        <Title heading={6} className="section-title">导出</Title>
-        <div className="generate-actions">
-          <Button
-            theme="solid"
-            type="primary"
-            icon={<IconDownload />}
-            onClick={handlePreviewExport}
-          >
-            导出预览图
-          </Button>
-        </div>
+      <div className="generate-actions">
+        <Button
+          theme="solid"
+          type="primary"
+          icon={<IconDownload />}
+          onClick={handlePreviewExport}
+          size="small"
+        >
+          导出预览图
+        </Button>
       </div>
     )
   }
 
-  // Bitable mode: full generate panel
   return (
-    <div className="panel-section">
-      <Title heading={6} className="section-title">生成海报</Title>
-
+    <div>
       <div className="generate-option">
         <RadioGroup
           value={mode}
           onChange={(e) => setMode(e.target.value as GenerateMode)}
           direction="horizontal"
+          size="small"
         >
           <Radio value="selected">选中行</Radio>
           <Radio value="all">全部行</Radio>
@@ -202,6 +194,7 @@ export function GeneratePanel({ canvasHook, bitableHook }: GeneratePanelProps) {
           onChange={(e) => setOutputMode(e.target.value as OutputMode)}
           direction="horizontal"
           type="button"
+          size="small"
         >
           <Radio value="download">下载</Radio>
           <Radio value="attachment">写入表格</Radio>
@@ -237,6 +230,7 @@ export function GeneratePanel({ canvasHook, bitableHook }: GeneratePanelProps) {
           <Progress
             percent={Math.round((progress.current / progress.total) * 100)}
             showInfo
+            size="small"
           />
         </div>
       )}
@@ -249,13 +243,14 @@ export function GeneratePanel({ canvasHook, bitableHook }: GeneratePanelProps) {
           loading={isGenerating}
           onClick={handleGenerate}
           disabled={isGenerating}
+          size="small"
         >
           {isGenerating
             ? `${progress.current}/${progress.total}`
             : '开始生成'}
         </Button>
         {isGenerating && (
-          <Button type="danger" icon={<IconClose />} onClick={handleCancel} />
+          <Button type="danger" icon={<IconClose />} onClick={handleCancel} size="small" />
         )}
       </div>
     </div>

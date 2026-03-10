@@ -1,9 +1,7 @@
 import { useRef } from 'react'
-import { Button, Typography } from '@douyinfe/semi-ui'
+import { Button } from '@douyinfe/semi-ui'
 import { IconUpload } from '@douyinfe/semi-icons'
 import type { useCanvas } from '../../hooks/useCanvas'
-
-const { Title } = Typography
 
 interface TemplateManagerProps {
   canvasHook: ReturnType<typeof useCanvas>
@@ -21,8 +19,7 @@ export function TemplateManager({ canvasHook }: TemplateManagerProps) {
   }
 
   return (
-    <div className="panel-section">
-      <Title heading={6} className="section-title">模板</Title>
+    <div className="header-template">
       <input
         ref={fileInputRef}
         type="file"
@@ -30,18 +27,17 @@ export function TemplateManager({ canvasHook }: TemplateManagerProps) {
         style={{ display: 'none' }}
         onChange={handleUpload}
       />
-      <div className="template-row">
-        <Button
-          icon={<IconUpload />}
-          size="small"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          上传模板
-        </Button>
-        <span className="template-size">
-          {canvasHook.templateSize.width} x {canvasHook.templateSize.height}
-        </span>
-      </div>
+      <span className="template-size">
+        {canvasHook.templateSize.width} x {canvasHook.templateSize.height}
+      </span>
+      <Button
+        icon={<IconUpload />}
+        size="small"
+        theme="borderless"
+        onClick={() => fileInputRef.current?.click()}
+      >
+        上传
+      </Button>
     </div>
   )
 }

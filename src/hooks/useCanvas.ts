@@ -5,8 +5,7 @@ import type { PlaceholderBinding } from '../types'
 
 const CANVAS_DEFAULT_W = 800
 const CANVAS_DEFAULT_H = 1200
-const CONTAINER_PADDING = 16
-const CANVAS_MAX_DISPLAY_HEIGHT = 240
+const CONTAINER_PADDING = 24
 
 export interface PlaceholderObject extends fabric.FabricObject {
   placeholderId?: string
@@ -156,16 +155,19 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     }
   }, [])
 
-  // fit canvas to container: constrained by both width and max height
+  // fit canvas to container: use actual container dimensions
   const fitToContainer = useCallback(() => {
     const c = canvasRef.current
     const container = containerRef.current
     if (!c || !container) return
 
     const containerWidth = container.clientWidth - CONTAINER_PADDING
+    const containerHeight = container.clientHeight - CONTAINER_PADDING
+    if (containerWidth <= 0 || containerHeight <= 0) return
+
     const scaleByWidth = containerWidth / templateSize.width
-    const scaleByHeight = CANVAS_MAX_DISPLAY_HEIGHT / templateSize.height
-    const scale = Math.min(scaleByWidth, scaleByHeight)
+    const scaleByHeight = containerHeight / templateSize.height
+    const scale = Math.min(scaleByWidth, scaleByHeight, 1)
 
     c.setDimensions({
       width: templateSize.width * scale,
@@ -304,20 +306,22 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
         new fabric.Rect({
           width: w,
           height: h,
-          fill: 'rgba(200, 200, 200, 0.4)',
-          stroke: '#999999',
-          strokeWidth: 2,
-          strokeDashArray: [8, 4],
+          fill: 'rgba(99, 102, 241, 0.04)',
+          stroke: 'rgba(99, 102, 241, 0.25)',
+          strokeWidth: 1,
+          strokeDashArray: [6, 3],
           rx: 4,
           ry: 4,
         }),
         new fabric.FabricText('IMG', {
-          fontSize: 24,
-          fill: '#999999',
+          fontSize: 14,
+          fill: 'rgba(99, 102, 241, 0.35)',
           originX: 'center',
           originY: 'center',
           top: 0,
           left: 0,
+          fontFamily: '-apple-system, system-ui, sans-serif',
+          fontWeight: '600',
         }),
       ],
       {
