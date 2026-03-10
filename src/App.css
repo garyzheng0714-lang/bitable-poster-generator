@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════
    Studio Light — Bitable Poster Generator
-   Warm creative workspace with indigo accent
+   Canvas-first layout with floating toolbar
    ═══════════════════════════════════════════ */
 
 /* ── Reset ── */
@@ -41,6 +41,7 @@
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
   --shadow-focus: 0 0 0 3px rgba(99, 102, 241, 0.15);
 
   /* Spacing */
@@ -105,21 +106,28 @@ body {
   color: var(--ink-tertiary);
 }
 
-/* ── Header ── */
+/* ── Header (compact) ── */
 .app-header {
-  padding: var(--sp-3) var(--sp-4);
+  height: 44px;
+  padding: 0 var(--sp-3);
   background: var(--surface-card);
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
+  justify-content: space-between;
   position: relative;
   z-index: 10;
-  box-shadow: 0 1px 0 var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
 }
 
 .app-header .semi-typography {
-  font-size: 15px !important;
+  font-size: 14px !important;
   font-weight: 700 !important;
   color: var(--ink-primary) !important;
   letter-spacing: -0.02em;
@@ -127,80 +135,23 @@ body {
 
 .header-accent {
   width: 3px;
-  height: 16px;
+  height: 14px;
   background: var(--accent);
   border-radius: 2px;
   flex-shrink: 0;
 }
 
-/* ── Scrollable Content ── */
-.app-scroll {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: var(--sp-3) 0 var(--sp-6);
-  -webkit-overflow-scrolling: touch;
-}
-
-.app-scroll::-webkit-scrollbar {
-  width: 3px;
-}
-.app-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-.app-scroll::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 3px;
-}
-.app-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.2);
-}
-
-.section {
-  padding: 0 var(--sp-4);
-  margin-bottom: var(--sp-3);
-}
-
-/* ── Standalone Banner ── */
-.standalone-banner {
-  margin: 0 var(--sp-3) var(--sp-3);
-}
-
-.standalone-banner .semi-banner {
-  border-radius: var(--r-md) !important;
-  background: var(--accent-light) !important;
-  border: 1px solid rgba(99, 102, 241, 0.12) !important;
-  padding: var(--sp-2) var(--sp-3) !important;
-}
-
-.standalone-banner .semi-banner-content-wrapper {
-  font-size: 12px;
-}
-
-/* ── Section Titles ── */
-.section-title {
-  font-size: 11px !important;
-  font-weight: 600 !important;
-  color: var(--ink-tertiary) !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.06em;
-  margin-bottom: var(--sp-2) !important;
-}
-
-/* ── Template Manager ── */
-.panel-section {
-  margin-bottom: var(--sp-1);
-}
-
-.template-row {
+/* ── Header Template Controls ── */
+.header-template {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
 }
 
-.template-row .semi-button {
-  flex: 1;
-  border-radius: var(--r-sm) !important;
+.header-template .semi-button {
+  font-size: 12px !important;
+  height: 28px;
+  padding: 0 var(--sp-2) !important;
 }
 
 .template-size {
@@ -208,29 +159,42 @@ body {
   color: var(--ink-tertiary);
   font-variant-numeric: tabular-nums;
   background: var(--surface-inset);
-  padding: 2px 8px;
+  padding: 2px 6px;
   border-radius: var(--r-sm);
   white-space: nowrap;
   letter-spacing: 0.02em;
 }
 
-/* ── Canvas Area (artboard zone) ── */
-.canvas-area {
-  margin-bottom: var(--sp-3);
+/* ── Standalone Banner ── */
+.standalone-banner {
+  flex-shrink: 0;
 }
 
-.canvas-section {
-  padding: var(--sp-4) var(--sp-4);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
-  min-height: 100px;
+.standalone-banner.semi-banner {
+  border-radius: 0 !important;
+  padding: var(--sp-1) var(--sp-3) !important;
+  background: var(--accent-light) !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.12) !important;
+}
+
+.standalone-banner .semi-banner-content-wrapper {
+  font-size: 12px;
+}
+
+/* ── Canvas Workspace (hero area) ── */
+.canvas-workspace {
+  flex: 1;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: var(--surface-canvas);
+  overflow: hidden;
+  min-height: 0;
 }
 
-.canvas-section::before {
+.canvas-workspace::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -249,18 +213,25 @@ body {
   z-index: 1;
 }
 
-/* ── Toolbar (attached to canvas) ── */
-.canvas-toolbar {
-  padding: var(--sp-2) var(--sp-4);
-  background: var(--surface-card);
-  border-top: 1px solid var(--border-subtle);
-  border-bottom: 1px solid var(--border);
+/* ── Floating Toolbar ── */
+.floating-toolbar {
+  position: absolute;
+  bottom: var(--sp-3);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: var(--r-lg);
+  padding: 3px;
+  box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-subtle);
 }
 
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
   padding: 0;
   border: none;
   margin: 0;
@@ -269,28 +240,24 @@ body {
 .toolbar-group {
   display: flex;
   gap: 1px;
-  background: var(--surface-inset);
-  border-radius: var(--r-sm);
-  padding: 2px;
+  padding: 1px;
 }
 
 .toolbar-group .semi-button {
-  border-radius: calc(var(--r-sm) - 2px) !important;
+  border-radius: var(--r-sm) !important;
   min-width: 30px;
-  height: 26px;
+  height: 28px;
   color: var(--ink-secondary) !important;
 }
 
 .toolbar-group .semi-button:hover {
-  background: var(--surface-card) !important;
+  background: rgba(0, 0, 0, 0.05) !important;
   color: var(--ink-primary) !important;
-  box-shadow: var(--shadow-xs);
 }
 
 .toolbar-group .semi-button[disabled] {
   color: var(--ink-placeholder) !important;
   background: transparent !important;
-  box-shadow: none !important;
 }
 
 .toolbar-group .semi-button-danger {
@@ -304,12 +271,68 @@ body {
 .toolbar-divider {
   width: 1px;
   height: 16px;
-  background: var(--border);
+  background: var(--border-strong);
   margin: 0 2px;
   flex-shrink: 0;
 }
 
-/* ── Field Binder ── */
+/* ── Bottom Panel ── */
+.bottom-panel {
+  flex-shrink: 0;
+  background: var(--surface-card);
+  border-top: 1px solid var(--border);
+  max-height: 220px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-tabs {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-tabs .semi-tabs-bar {
+  padding: 0 var(--sp-3) !important;
+  margin-bottom: 0 !important;
+  flex-shrink: 0;
+}
+
+.panel-tabs .semi-tabs-bar-line .semi-tabs-tab {
+  padding: var(--sp-2) var(--sp-3) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+.panel-tabs .semi-tabs-content {
+  flex: 1;
+  overflow: hidden;
+}
+
+.panel-tabs .semi-tabs-pane {
+  height: 100%;
+  padding: 0 !important;
+}
+
+.tab-content {
+  padding: var(--sp-2) var(--sp-3);
+  overflow-y: auto;
+  max-height: 170px;
+}
+
+.tab-content::-webkit-scrollbar {
+  width: 3px;
+}
+.tab-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+.tab-content::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 3px;
+}
+
+/* ── Field Binder (compact) ── */
 .binding-list {
   display: flex;
   flex-direction: column;
@@ -320,7 +343,7 @@ body {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  padding: 5px var(--sp-2);
+  padding: 4px var(--sp-2);
   border-radius: var(--r-sm);
   cursor: pointer;
   transition: background 0.12s ease;
@@ -339,19 +362,19 @@ body {
   align-items: center;
   min-width: 0;
   flex: 0 0 auto;
-  max-width: 90px;
+  max-width: 80px;
   overflow: hidden;
-  gap: 6px;
+  gap: 5px;
 }
 
 .binding-type-indicator {
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   flex-shrink: 0;
   letter-spacing: 0.02em;
@@ -374,21 +397,7 @@ body {
 
 .binding-empty {
   text-align: center;
-  padding: var(--sp-4) var(--sp-2);
-}
-
-.binding-empty-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--r-md);
-  background: var(--surface-inset);
-  border: 1.5px dashed var(--border-strong);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: var(--sp-2);
-  color: var(--ink-tertiary);
-  font-size: 18px;
+  padding: var(--sp-3) var(--sp-2);
 }
 
 .binding-empty-text {
@@ -396,7 +405,7 @@ body {
   color: var(--ink-tertiary);
 }
 
-/* ── Generate Panel ── */
+/* ── Generate Panel (compact) ── */
 .generate-option {
   display: flex;
   align-items: center;
@@ -414,7 +423,7 @@ body {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  margin-bottom: var(--sp-3);
+  margin-bottom: var(--sp-2);
 }
 
 .generate-field-select .semi-select {
@@ -431,12 +440,11 @@ body {
   flex: 1;
 }
 
-/* CTA button gradient treatment */
 .generate-actions .semi-button-primary {
   border-radius: var(--r-md) !important;
-  height: 36px;
+  height: 32px;
   font-weight: 600 !important;
-  font-size: 13px !important;
+  font-size: 12px !important;
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%) !important;
   border: none !important;
   box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
@@ -458,7 +466,6 @@ body {
   transform: none !important;
 }
 
-/* Progress bar */
 .generate-progress {
   margin-bottom: var(--sp-2);
 }
@@ -482,16 +489,4 @@ body {
 
 .semi-radio-addon-buttonRadio-checked {
   background: var(--accent) !important;
-}
-
-/* ── Scrollbar ── */
-.app-scroll::-webkit-scrollbar {
-  width: 3px;
-}
-.app-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-.app-scroll::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.08);
-  border-radius: 3px;
 }
