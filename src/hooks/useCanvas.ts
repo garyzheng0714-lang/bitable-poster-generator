@@ -43,6 +43,15 @@ async function loadWithReviver(
 
 function serializeCanvas(canvas: fabric.Canvas): string {
   const canvasData = canvas.toJSON()
+
+  // Restore logical dimensions — undo zoom scaling so the poster generator
+  // creates an offscreen canvas at the correct full size.
+  const zoom = canvas.getZoom()
+  if (zoom !== 1) {
+    canvasData.width = Math.round(canvas.width / zoom)
+    canvasData.height = Math.round(canvas.height / zoom)
+  }
+
   const objects = canvas.getObjects()
   if (canvasData.objects) {
     canvasData.objects.forEach((objData: any, i: number) => {
