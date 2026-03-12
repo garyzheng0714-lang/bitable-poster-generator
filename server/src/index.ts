@@ -22,7 +22,8 @@ import {
   deleteAppData,
 } from './storage.js';
 
-dotenv.config();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const app = express();
 const port = Number(process.env.PORT || 4567);
@@ -186,7 +187,6 @@ app.get('/api/health', (_req, res) => {
 
 // ── Serve frontend static files (production) ──
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distPath = path.resolve(__dirname, '../../dist');
 app.use(express.static(distPath));
 app.get('{*path}', (req, res, next) => {
