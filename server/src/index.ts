@@ -55,7 +55,7 @@ app.post('/api/auth/plugin-login', async (req, res) => {
     return;
   }
 
-  const user = upsertUser({
+  const user = await upsertUser({
     openId: userInfo.open_id,
     unionId: userInfo.union_id,
     name: userInfo.name,
@@ -65,7 +65,7 @@ app.post('/api/auth/plugin-login', async (req, res) => {
 
   const token = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
-  upsertSession({
+  await upsertSession({
     token,
     openId: user.open_id,
     accessToken: 'plugin-mode',
@@ -103,7 +103,7 @@ app.get('/api/auth/callback', async (req, res) => {
   const tokenData = await exchangeCodeForToken(appId, appSecret, code);
   const userInfo = await getUserInfoByAccessToken(tokenData.access_token);
 
-  const user = upsertUser({
+  const user = await upsertUser({
     openId: userInfo.open_id,
     unionId: userInfo.union_id,
     name: userInfo.name,
@@ -114,7 +114,7 @@ app.get('/api/auth/callback', async (req, res) => {
   const sessionToken = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
   const refreshExpiresAt = new Date(Date.now() + tokenData.refresh_expires_in * 1000).toISOString();
-  upsertSession({
+  await upsertSession({
     token: sessionToken,
     openId: user.open_id,
     accessToken: tokenData.access_token,
@@ -133,23 +133,23 @@ app.get('/api/auth/me', authMiddleware, (req, res) => {
   res.json({ user: req.user });
 });
 
-app.post('/api/auth/logout', authMiddleware, (req, res) => {
-  deleteSession(req.sessionToken!);
+app.post('/api/auth/logout', authMiddleware, async (req, res) => {
+  await deleteSession(req.sessionToken!);
   res.json({ ok: true });
 });
 
 // ── App Data CRUD ──
 
-app.get('/api/data/:projectId', authMiddleware, (req, res) => {
+app.get('/api/data/:projectId', authMiddleware, async (req, res) => {
   const { projectId } = req.params;
   const prefix = req.query.prefix as string | undefined;
-  const items = listAppData(projectId, req.user!.open_id, prefix);
+  const items = await listAppData(projectId, req.user!.open_id, prefix);
   res.json({ items });
 });
 
-app.get('/api/data/:projectId/:dataKey', authMiddleware, (req, res) => {
+app.get('/api/data/:projectId/:dataKey', authMiddleware, async (req, res) => {
   const { projectId, dataKey } = req.params;
-  const item = getAppData(projectId, req.user!.open_id, dataKey);
+  const item = await getAppData(projectId, req.user!.open_id, dataKey);
   if (!item) {
     res.status(404).json({ error: 'not_found' });
     return;
@@ -157,14 +157,14 @@ app.get('/api/data/:projectId/:dataKey', authMiddleware, (req, res) => {
   res.json({ item });
 });
 
-app.put('/api/data/:projectId/:dataKey', authMiddleware, (req, res) => {
+app.put('/api/data/:projectId/:dataKey', authMiddleware, async (req, res) => {
   const { projectId, dataKey } = req.params;
   const { value } = req.body;
   if (value === undefined) {
     res.status(400).json({ error: 'value required' });
     return;
   }
-  const item = putAppData({
+  const item = await putAppData({
     projectId,
     openId: req.user!.open_id,
     dataKey,
@@ -173,9 +173,9 @@ app.put('/api/data/:projectId/:dataKey', authMiddleware, (req, res) => {
   res.json({ item });
 });
 
-app.delete('/api/data/:projectId/:dataKey', authMiddleware, (req, res) => {
+app.delete('/api/data/:projectId/:dataKey', authMiddleware, async (req, res) => {
   const { projectId, dataKey } = req.params;
-  const ok = deleteAppData(projectId, req.user!.open_id, dataKey);
+  const ok = await deleteAppData(projectId, req.user!.open_id, dataKey);
   res.json({ ok });
 });
 

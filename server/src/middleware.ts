@@ -19,19 +19,20 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
   }
 
   const token = authHeader.slice(7);
-  const session = getSessionByToken(token);
-  if (!session) {
-    res.status(401).json({ error: 'invalid_session' });
-    return;
-  }
 
-  const user = getUserByOpenId(session.open_id);
-  if (!user) {
-    res.status(401).json({ error: 'user_not_found' });
-    return;
-  }
-
-  req.user = user;
-  req.sessionToken = token;
-  next();
+  getSessionByToken(token).then((session) => {
+    if (!session) {
+      res.status(401).json({ error: 'invalid_session' });
+      return;
+    }
+    return getUserByOpenId(session.open_id).then((user) => {
+      if (!user) {
+        res.status(401).json({ error: 'user_not_found' });
+        return;
+      }
+      req.user = user;
+      req.sessionToken = token;
+      next();
+    });
+  }).catch(next);
 }
