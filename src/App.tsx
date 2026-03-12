@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { Spin, Typography, Tabs, TabPane, Banner } from '@douyinfe/semi-ui'
 import { useTheme } from './hooks/useTheme'
 import { useBitable } from './hooks/useBitable'
@@ -19,6 +19,8 @@ export default function App() {
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasHook = useCanvas(containerRef)
   const [activeTab, setActiveTab] = useState('fields')
+  const [toolbarCollapsed, setToolbarCollapsed] = useState(false)
+  const toggleToolbar = useCallback(() => setToolbarCollapsed((v) => !v), [])
 
   return (
     <div className="app">
@@ -46,10 +48,18 @@ export default function App() {
       )}
 
       <div className="canvas-workspace" ref={containerRef}>
-        <CanvasEditor canvasHook={canvasHook} />
-        <div className="floating-toolbar">
-          <Toolbar canvasHook={canvasHook} />
+        <div className={`side-toolbar ${toolbarCollapsed ? 'collapsed' : ''}`}>
+          <div className="side-toolbar-content">
+            <Toolbar canvasHook={canvasHook} />
+          </div>
         </div>
+        <button
+          className={`side-toolbar-tab ${toolbarCollapsed ? 'collapsed' : ''}`}
+          onClick={toggleToolbar}
+        >
+          {toolbarCollapsed ? '›' : '‹'}
+        </button>
+        <CanvasEditor canvasHook={canvasHook} />
       </div>
 
       <div className="bottom-panel">

@@ -15,9 +15,9 @@ export function Toolbar({ canvasHook }: ToolbarProps) {
   }
 
   return (
-    <div className="toolbar">
+    <div className="toolbar vertical">
       <div className="toolbar-group">
-        <Tooltip content="添加文字">
+        <Tooltip content="添加文字" position="right">
           <Button
             icon={<IconFont />}
             theme="borderless"
@@ -26,7 +26,7 @@ export function Toolbar({ canvasHook }: ToolbarProps) {
             onDragStart={(e) => handleDragStart(e, 'text')}
           />
         </Tooltip>
-        <Tooltip content="添加图片">
+        <Tooltip content="添加图片" position="right">
           <Button
             icon={<IconImage />}
             theme="borderless"
@@ -35,12 +35,13 @@ export function Toolbar({ canvasHook }: ToolbarProps) {
             onDragStart={(e) => handleDragStart(e, 'image')}
           />
         </Tooltip>
-        <Tooltip content="添加圆形Logo">
+        <Tooltip content="添加圆形Logo" position="right">
           <Button
             theme="borderless"
             onClick={addLogoPlaceholder}
             draggable
             onDragStart={(e) => handleDragStart(e, 'logo')}
+            style={{ fontSize: 10, fontWeight: 700 }}
           >
             Logo
           </Button>
@@ -48,16 +49,16 @@ export function Toolbar({ canvasHook }: ToolbarProps) {
       </div>
       <div className="toolbar-divider" />
       <div className="toolbar-group">
-        <Tooltip content="撤销">
+        <Tooltip content="撤销" position="right">
           <Button icon={<IconUndo />} theme="borderless" onClick={undo} />
         </Tooltip>
-        <Tooltip content="重做">
+        <Tooltip content="重做" position="right">
           <Button icon={<IconRedo />} theme="borderless" onClick={redo} />
         </Tooltip>
       </div>
       <div className="toolbar-divider" />
       <div className="toolbar-group">
-        <Tooltip content="删除">
+        <Tooltip content="删除" position="right">
           <Button
             icon={<IconDelete />}
             theme="borderless"

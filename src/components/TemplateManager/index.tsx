@@ -83,9 +83,6 @@ export function TemplateManager({ canvasHook }: TemplateManagerProps) {
         style={{ display: 'none' }}
         onChange={handleUpload}
       />
-      <span className="template-size">
-        {canvasHook.templateSize.width} x {canvasHook.templateSize.height}
-      </span>
       <Button
         icon={<IconUpload />}
         size="small"
