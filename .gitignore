@@ -29,3 +29,7 @@ dist-ssr
 data/
 server/node_modules
 .codepilot-uploads/
+test-screenshots/
+test-template*.png
+*.png
+!src/**/*.png
