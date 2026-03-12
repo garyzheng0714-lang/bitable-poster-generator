@@ -41,9 +41,12 @@ export function useAuth(): AuthState {
         }
       }
 
-      // 2. Try plugin login via Bitable SDK
+      // 2. Try plugin login via Bitable SDK (with 2s timeout)
       try {
-        const userId = await bitable.bridge.getUserId();
+        const userId = await Promise.race([
+          bitable.bridge.getUserId(),
+          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
+        ]);
         if (userId) {
           const { token, user: u } = await pluginLogin(userId);
           setAuthToken(token);
@@ -52,7 +55,7 @@ export function useAuth(): AuthState {
           return;
         }
       } catch {
-        // SDK not available (not in Bitable context)
+        // SDK not available or timeout
       }
 
       // 3. Check URL for OAuth callback token

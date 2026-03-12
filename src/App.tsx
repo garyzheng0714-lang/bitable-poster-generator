@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
-import { Spin, Typography, Tabs, TabPane, Banner, Avatar, Tooltip } from '@douyinfe/semi-ui'
+import { Spin, Typography, Tabs, TabPane, Banner, Avatar, Button, Dropdown } from '@douyinfe/semi-ui'
 import { useTheme } from './hooks/useTheme'
 import { useAuth } from './hooks/useAuth'
 import { useBitable } from './hooks/useBitable'
@@ -39,17 +39,41 @@ export default function App() {
         </div>
         <div className="header-right">
           <TemplateManager canvasHook={canvasHook} />
+          {!auth.loading && !auth.user && (
+            <Button
+              size="small"
+              theme="solid"
+              type="primary"
+              onClick={() => {
+                window.location.href = `/api/auth/login?return_url=${encodeURIComponent(window.location.href)}`
+              }}
+            >
+              登录
+            </Button>
+          )}
           {auth.user && (
-            <Tooltip content={auth.user.name} position="bottom">
+            <Dropdown
+              trigger="click"
+              position="bottomRight"
+              render={
+                <Dropdown.Menu>
+                  <Dropdown.Item disabled style={{ opacity: 0.6, cursor: 'default' }}>
+                    {auth.user.name}
+                  </Dropdown.Item>
+                  <Dropdown.Divider />
+                  <Dropdown.Item onClick={auth.logout}>退出登录</Dropdown.Item>
+                </Dropdown.Menu>
+              }
+            >
               <Avatar
                 size="extra-small"
                 src={auth.user.avatar_url || undefined}
                 alt={auth.user.name}
-                style={{ marginLeft: 8, cursor: 'default' }}
+                style={{ marginLeft: 8, cursor: 'pointer' }}
               >
                 {auth.user.name?.[0]}
               </Avatar>
-            </Tooltip>
+            </Dropdown>
           )}
         </div>
       </div>
