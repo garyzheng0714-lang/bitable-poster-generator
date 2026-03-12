@@ -37,14 +37,16 @@ export function Toolbar({ canvasHook }: ToolbarProps) {
         </Tooltip>
         <Tooltip content="添加圆形Logo" position="right">
           <Button
+            icon={
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ display: 'block' }}>
+                <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 2" />
+              </svg>
+            }
             theme="borderless"
             onClick={addLogoPlaceholder}
             draggable
             onDragStart={(e) => handleDragStart(e, 'logo')}
-            style={{ fontSize: 10, fontWeight: 700 }}
-          >
-            Logo
-          </Button>
+          />
         </Tooltip>
       </div>
       <div className="toolbar-divider" />

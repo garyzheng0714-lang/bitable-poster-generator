@@ -17,6 +17,9 @@ export function CanvasEditor({ canvasHook }: CanvasEditorProps) {
       initialized.current = true
       initCanvas(canvasElRef.current)
     }
+    return () => {
+      initialized.current = false
+    }
   }, [initCanvas])
 
   useEffect(() => {

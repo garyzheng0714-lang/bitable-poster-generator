@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
-import { Spin, Typography, Tabs, TabPane, Banner, Avatar, Button, Dropdown } from '@douyinfe/semi-ui'
+import { Spin, Typography, Banner, Avatar, Button, Dropdown } from '@douyinfe/semi-ui'
 import { useTheme } from './hooks/useTheme'
 import { useAuth } from './hooks/useAuth'
 import { useBitable } from './hooks/useBitable'
@@ -7,9 +7,7 @@ import { useCanvas } from './hooks/useCanvas'
 import { CanvasEditor } from './components/CanvasEditor'
 import { Toolbar } from './components/Toolbar'
 import { TemplateManager } from './components/TemplateManager'
-import { FieldBinder } from './components/FieldBinder'
-import { PropertyPanel } from './components/PropertyPanel'
-import { GeneratePanel } from './components/GeneratePanel'
+import { UnifiedPanel } from './components/UnifiedPanel'
 import './App.css'
 
 const { Title } = Typography
@@ -20,7 +18,6 @@ export default function App() {
   const bitableHook = useBitable()
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasHook = useCanvas(containerRef)
-  const [activeTab, setActiveTab] = useState('fields')
   const [toolbarCollapsed, setToolbarCollapsed] = useState(false)
   const toggleToolbar = useCallback(() => setToolbarCollapsed((v) => !v), [])
 
@@ -103,33 +100,7 @@ export default function App() {
       </div>
 
       <div className="bottom-panel">
-        <Tabs
-          activeKey={activeTab}
-          onChange={(key) => setActiveTab(key)}
-          size="small"
-          type="line"
-          className="panel-tabs"
-        >
-          <TabPane tab="字段" itemKey="fields">
-            <div className="tab-content">
-              <FieldBinder
-                canvasHook={canvasHook}
-                textFields={bitableHook.textFields}
-                imageFields={bitableHook.imageFields}
-              />
-            </div>
-          </TabPane>
-          <TabPane tab="属性" itemKey="properties">
-            <div className="tab-content">
-              <PropertyPanel canvasHook={canvasHook} />
-            </div>
-          </TabPane>
-          <TabPane tab="生成" itemKey="generate">
-            <div className="tab-content">
-              <GeneratePanel canvasHook={canvasHook} bitableHook={bitableHook} />
-            </div>
-          </TabPane>
-        </Tabs>
+        <UnifiedPanel canvasHook={canvasHook} bitableHook={bitableHook} />
       </div>
     </div>
   )
