@@ -35,6 +35,8 @@ export interface TemplateConfig {
   backgroundUrl: string
   placeholders: PlaceholderConfig[]
   canvasJson: string
+  thumbnailDataUrl?: string
+  updatedAt?: string
 }
 
 export interface FieldMeta {

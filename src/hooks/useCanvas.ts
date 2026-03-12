@@ -11,6 +11,8 @@ export interface PlaceholderObject extends fabric.FabricObject {
   placeholderId?: string
   placeholderType?: 'text' | 'image'
   placeholderLabel?: string
+  placeholderShape?: 'rect' | 'circle'
+  placeholderFit?: 'cover' | 'contain'
   binding?: PlaceholderBinding | null
 }
 
@@ -23,16 +25,14 @@ async function loadWithReviver(
       ;(instance as PlaceholderObject).placeholderId = _serialized.placeholderId
       ;(instance as PlaceholderObject).placeholderType = _serialized.placeholderType
       ;(instance as PlaceholderObject).placeholderLabel = _serialized.placeholderLabel
+      ;(instance as PlaceholderObject).placeholderShape =
+        _serialized.placeholderShape ?? (_serialized.placeholderType === 'image' ? 'rect' : undefined)
+      ;(instance as PlaceholderObject).placeholderFit =
+        _serialized.placeholderFit ?? (_serialized.placeholderType === 'image' ? 'cover' : undefined)
       ;(instance as PlaceholderObject).binding = _serialized.binding ?? null
     }
     if (_serialized.placeholderType === 'text') {
-      instance.set({ lockUniScaling: true })
-      ;(instance as any).setControlsVisibility?.({
-        mt: false,
-        mb: false,
-        ml: false,
-        mr: false,
-      })
+      instance.set({ lockScalingY: true, splitByGrapheme: false })
     }
     if (_serialized._isBg) {
       ;(instance as any)._isBg = true
@@ -60,6 +60,8 @@ function serializeCanvas(canvas: fabric.Canvas): string {
         objData.placeholderId = obj.placeholderId
         objData.placeholderType = obj.placeholderType
         objData.placeholderLabel = obj.placeholderLabel
+        objData.placeholderShape = obj.placeholderShape
+        objData.placeholderFit = obj.placeholderFit
         objData.binding = obj.binding
         if ((obj as any)._isBg) objData._isBg = true
       }
@@ -68,10 +70,33 @@ function serializeCanvas(canvas: fabric.Canvas): string {
   return JSON.stringify(canvasData)
 }
 
+/**
+ * Auto-fit: shrink fontSize so text fits in one line within the Textbox width.
+ * Only shrinks below the "base" size; never grows beyond it.
+ */
+function autoFitTextInBox(textObj: fabric.Textbox, baseFontSize?: number) {
+  const maxSize = baseFontSize ?? (textObj.fontSize ?? 36)
+  const text = textObj.text ?? ''
+  if (!text.trim()) return
+
+  // Start from max and shrink until it fits in one line
+  let size = maxSize
+  textObj.set({ fontSize: size })
+  while (size > 8) {
+    textObj.set({ fontSize: size })
+    textObj.initDimensions()
+    // If the text height is more than ~1.5 lines, it wrapped
+    const lineHeight = size * (textObj.lineHeight ?? 1.2)
+    if (textObj.height! <= lineHeight * 1.3) break
+    size--
+  }
+}
+
 export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) {
   const canvasRef = useRef<fabric.Canvas | null>(null)
   const [canvas, setCanvas] = useState<fabric.Canvas | null>(null)
   const [activeObject, setActiveObject] = useState<PlaceholderObject | null>(null)
+  const [, bumpActiveObjectVersion] = useState(0)
   const [placeholders, setPlaceholders] = useState<PlaceholderObject[]>([])
   const [templateSize, setTemplateSize] = useState({ width: CANVAS_DEFAULT_W, height: CANVAS_DEFAULT_H })
   const historyRef = useRef<string[]>([])
@@ -96,6 +121,11 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1)
     historyRef.current.push(json)
     historyIndexRef.current = historyRef.current.length - 1
+  }, [])
+
+  const syncActiveObject = useCallback((next: PlaceholderObject | null) => {
+    setActiveObject(next)
+    bumpActiveObjectVersion((v) => v + 1)
   }, [])
 
   // initialize canvas
@@ -131,35 +161,60 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
 
     setupGuidelines(c)
 
-    // --- Rotation angle indicator ---
-    let isRotating = false
-    let rotationAngle = 0
-    let rotationTarget: fabric.FabricObject | null = null
+    // --- Interaction indicators (position, size, rotation) ---
+    let interactionMode: 'none' | 'moving' | 'scaling' | 'rotating' = 'none'
+    let indicatorTarget: fabric.FabricObject | null = null
+    let indicatorData = { x: 0, y: 0, w: 0, h: 0, angle: 0 }
 
-    c.on('object:rotating', (e) => {
-      isRotating = true
-      rotationAngle = Math.round(e.target?.angle ?? 0)
-      rotationTarget = e.target ?? null
+    c.on('object:moving', (e) => {
+      if (!e.target) return
+      interactionMode = 'moving'
+      indicatorTarget = e.target
+      indicatorData.x = Math.round(e.target.left ?? 0)
+      indicatorData.y = Math.round(e.target.top ?? 0)
     })
 
-    const clearRotationState = () => {
-      if (isRotating) {
-        isRotating = false
-        rotationTarget = null
+    c.on('object:scaling', (e) => {
+      if (!e.target) return
+      interactionMode = 'scaling'
+      indicatorTarget = e.target
+      indicatorData.w = Math.round((e.target.width ?? 0) * (e.target.scaleX ?? 1))
+      indicatorData.h = Math.round((e.target.height ?? 0) * (e.target.scaleY ?? 1))
+    })
+
+    c.on('object:rotating', (e) => {
+      if (!e.target) return
+      interactionMode = 'rotating'
+      indicatorTarget = e.target
+      indicatorData.angle = Math.round(e.target.angle ?? 0)
+    })
+
+    const clearInteractionState = () => {
+      if (interactionMode !== 'none') {
+        interactionMode = 'none'
+        indicatorTarget = null
         c.requestRenderAll()
       }
     }
-    c.on('mouse:up', clearRotationState)
+    c.on('mouse:up', clearInteractionState)
 
     c.on('after:render', () => {
-      if (!isRotating || !rotationTarget) return
+      if (interactionMode === 'none' || !indicatorTarget) return
       const ctx = c.getContext()
-      const bound = rotationTarget.getBoundingRect()
-      const text = `${rotationAngle}°`
+      const bound = indicatorTarget.getBoundingRect()
+
+      let label = ''
+      if (interactionMode === 'moving') {
+        label = `X: ${indicatorData.x}  Y: ${indicatorData.y}`
+      } else if (interactionMode === 'scaling') {
+        label = `${indicatorData.w} × ${indicatorData.h}`
+      } else if (interactionMode === 'rotating') {
+        label = `${indicatorData.angle}°`
+      }
 
       ctx.save()
       ctx.font = '600 11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-      const metrics = ctx.measureText(text)
+      const metrics = ctx.measureText(label)
       const pw = 8
       const bw = metrics.width + pw * 2
       const bh = 22
@@ -174,33 +229,75 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
       ctx.fillStyle = '#ffffff'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText(text, x, y - bh / 2)
+      ctx.fillText(label, x, y - bh / 2)
       ctx.restore()
     })
 
+    // Auto-fit text when user edits a Textbox
+    c.on('text:changed', (e) => {
+      const target = e.target as PlaceholderObject
+      if (target?.placeholderType === 'text' && target instanceof fabric.Textbox) {
+        autoFitTextInBox(target)
+        c.renderAll()
+      }
+    })
+
     c.on('selection:created', (e) => {
-      setActiveObject((e.selected?.[0] as PlaceholderObject) ?? null)
+      syncActiveObject((e.selected?.[0] as PlaceholderObject) ?? null)
     })
     c.on('selection:updated', (e) => {
-      setActiveObject((e.selected?.[0] as PlaceholderObject) ?? null)
+      syncActiveObject((e.selected?.[0] as PlaceholderObject) ?? null)
     })
     c.on('selection:cleared', () => {
-      setActiveObject(null)
+      syncActiveObject(null)
     })
 
     c.on('object:modified', (e) => {
       const target = e.target as PlaceholderObject
+      let changed = false
       if (target?.placeholderType === 'text') {
-        const textObj = target as unknown as fabric.IText
+        const textObj = target as unknown as fabric.Textbox
         const sx = textObj.scaleX ?? 1
         const sy = textObj.scaleY ?? 1
         if (sx !== 1 || sy !== 1) {
-          const fontSize = textObj.fontSize ?? 36
-          const newSize = Math.round(fontSize * Math.max(sx, sy))
-          textObj.set({ fontSize: newSize, scaleX: 1, scaleY: 1 })
+          const newWidth = Math.max(40, Math.round((textObj.width ?? 240) * sx))
+          textObj.set({ width: newWidth, scaleX: 1, scaleY: 1 })
           textObj.setCoords()
-          c.renderAll()
+          changed = true
         }
+      }
+      if (target?.placeholderType === 'image') {
+        const sx = target.scaleX ?? 1
+        const sy = target.scaleY ?? 1
+        if (sx !== 1 || sy !== 1) {
+          const center = target.getCenterPoint()
+          if (target.placeholderShape === 'circle' && target instanceof fabric.Circle) {
+            const radius = target.radius ?? 0
+            const diameter = Math.max(24, radius * 2 * Math.max(sx, sy))
+            target.set({
+              radius: diameter / 2,
+              scaleX: 1,
+              scaleY: 1,
+            })
+          } else {
+            const width = Math.max(24, (target.width ?? 0) * sx)
+            const height = Math.max(24, (target.height ?? 0) * sy)
+            target.set({
+              width,
+              height,
+              scaleX: 1,
+              scaleY: 1,
+            })
+          }
+          target.setPositionByOrigin(center, 'center', 'center')
+          target.setCoords()
+          changed = true
+        }
+      }
+      if (changed) c.renderAll()
+      const placeholderTarget = target as PlaceholderObject
+      if (placeholderTarget?.placeholderType) {
+        syncActiveObject(placeholderTarget)
       }
       saveHistory(c)
     })
@@ -218,7 +315,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     saveHistory(c)
 
     return c
-  }, [saveHistory, refreshPlaceholders])
+  }, [saveHistory, refreshPlaceholders, syncActiveObject])
 
   // cleanup on unmount
   useEffect(() => {
@@ -329,30 +426,26 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     return c.getObjects().filter((o: any) => o.placeholderType).length
   }, [])
 
-  // add text placeholder
+  // add text placeholder (Textbox with fixed width, auto-fit font size)
   const addTextPlaceholder = useCallback(() => {
     const c = canvasRef.current
     if (!c) return
 
     const offset = getPlaceholderOffset() * 30
     const id = crypto.randomUUID()
-    const text = new fabric.IText('Text', {
-      left: templateSize.width / 2 - 60 + offset,
+    const boxWidth = 240
+    const text = new fabric.Textbox('Text', {
+      left: templateSize.width / 2 - boxWidth / 2 + offset,
       top: templateSize.height / 2 - 20 + offset,
+      width: boxWidth,
       fontSize: 36,
       fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
       fill: '#333333',
       editable: true,
       padding: 8,
-      lockUniScaling: true,
+      splitByGrapheme: false,
+      lockScalingY: true,
     }) as PlaceholderObject
-
-    ;(text as unknown as fabric.IText).setControlsVisibility({
-      mt: false,
-      mb: false,
-      ml: false,
-      mr: false,
-    })
 
     text.placeholderId = id
     text.placeholderType = 'text'
@@ -390,10 +483,43 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     rect.placeholderId = id
     rect.placeholderType = 'image'
     rect.placeholderLabel = 'Image'
+    rect.placeholderShape = 'rect'
+    rect.placeholderFit = 'contain'
     rect.binding = null
 
     c.add(rect)
     c.setActiveObject(rect)
+    c.renderAll()
+  }, [templateSize, getPlaceholderOffset])
+
+  // add circular logo placeholder
+  const addLogoPlaceholder = useCallback(() => {
+    const c = canvasRef.current
+    if (!c) return
+
+    const offset = getPlaceholderOffset() * 30
+    const id = crypto.randomUUID()
+    const diameter = 180
+
+    const circle = new fabric.Circle({
+      left: templateSize.width / 2 - diameter / 2 + offset,
+      top: templateSize.height / 2 - diameter / 2 + offset,
+      radius: diameter / 2,
+      fill: 'rgba(0, 0, 0, 0.03)',
+      stroke: 'rgba(0, 0, 0, 0.12)',
+      strokeWidth: 1,
+      padding: 4,
+    }) as unknown as PlaceholderObject
+
+    circle.placeholderId = id
+    circle.placeholderType = 'image'
+    circle.placeholderLabel = 'Logo'
+    circle.placeholderShape = 'circle'
+    circle.placeholderFit = 'contain'
+    circle.binding = null
+
+    c.add(circle)
+    c.setActiveObject(circle)
     c.renderAll()
   }, [templateSize, getPlaceholderOffset])
 
@@ -405,17 +531,136 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
 
     obj.binding = binding
     if (binding && obj.placeholderType === 'text') {
-      ;(obj as unknown as fabric.IText).set('text', `{{${binding.fieldName}}}`)
+      const textObj = obj as unknown as fabric.Textbox
+      textObj.set('text', `{{${binding.fieldName}}}`)
+      if (textObj instanceof fabric.Textbox) {
+        autoFitTextInBox(textObj)
+      }
     }
     if (binding && obj.placeholderType === 'image') {
       obj.placeholderLabel = binding.fieldName
     }
 
     c.renderAll()
-    setActiveObject({ ...obj } as PlaceholderObject)
+    syncActiveObject(obj)
     refreshPlaceholders()
     saveHistory(c)
-  }, [activeObject, refreshPlaceholders, saveHistory])
+  }, [activeObject, refreshPlaceholders, saveHistory, syncActiveObject])
+
+  // update text font size
+  const updateTextFontSize = useCallback((fontSize: number, target?: PlaceholderObject) => {
+    const c = canvasRef.current
+    const obj = target ?? activeObject
+    if (!c || !obj || obj.placeholderType !== 'text') return
+
+    const size = Math.max(8, Math.round(fontSize))
+    const textObj = obj as unknown as fabric.Textbox
+    textObj.set({ fontSize: size, scaleX: 1, scaleY: 1 })
+    if (textObj instanceof fabric.Textbox) {
+      autoFitTextInBox(textObj, size)
+    }
+    textObj.setCoords()
+    c.renderAll()
+    syncActiveObject(obj)
+    saveHistory(c)
+  }, [activeObject, saveHistory, syncActiveObject])
+
+  // update text box width
+  const updateTextBoxWidth = useCallback((width: number, target?: PlaceholderObject) => {
+    const c = canvasRef.current
+    const obj = target ?? activeObject
+    if (!c || !obj || obj.placeholderType !== 'text') return
+
+    const w = Math.max(40, Math.round(width))
+    const textObj = obj as unknown as fabric.Textbox
+    textObj.set({ width: w, scaleX: 1, scaleY: 1 })
+    if (textObj instanceof fabric.Textbox) {
+      autoFitTextInBox(textObj)
+    }
+    textObj.setCoords()
+    c.renderAll()
+    syncActiveObject(obj)
+    saveHistory(c)
+  }, [activeObject, saveHistory, syncActiveObject])
+
+  // update image placeholder size with numeric input
+  const updateImageSize = useCallback(
+    (
+      next: { width?: number; height?: number; diameter?: number },
+      target?: PlaceholderObject,
+    ) => {
+      const c = canvasRef.current
+      const obj = target ?? activeObject
+      if (!c || !obj || obj.placeholderType !== 'image') return
+
+      const center = obj.getCenterPoint()
+
+      if (obj.placeholderShape === 'circle' && obj instanceof fabric.Circle) {
+        const diameter = Math.max(24, Math.round(next.diameter ?? 0))
+        obj.set({
+          radius: diameter / 2,
+          scaleX: 1,
+          scaleY: 1,
+        })
+      } else {
+        const width = Math.max(24, Math.round(next.width ?? (obj.width ?? 0)))
+        const height = Math.max(24, Math.round(next.height ?? (obj.height ?? 0)))
+        obj.set({
+          width,
+          height,
+          scaleX: 1,
+          scaleY: 1,
+        })
+      }
+
+      obj.setPositionByOrigin(center, 'center', 'center')
+      obj.setCoords()
+      c.renderAll()
+      syncActiveObject(obj)
+      saveHistory(c)
+    },
+    [activeObject, saveHistory, syncActiveObject],
+  )
+
+  // update left/top/angle with numeric input
+  const updateObjectTransform = useCallback(
+    (next: { left?: number; top?: number; angle?: number }, target?: PlaceholderObject) => {
+      const c = canvasRef.current
+      const obj = target ?? activeObject
+      if (!c || !obj || !obj.placeholderType) return
+
+      const left = Math.round(next.left ?? (obj.left ?? 0))
+      const top = Math.round(next.top ?? (obj.top ?? 0))
+      const angle = Math.round(next.angle ?? (obj.angle ?? 0))
+
+      obj.set({
+        left,
+        top,
+        angle,
+      })
+      obj.setCoords()
+      c.renderAll()
+      syncActiveObject(obj)
+      saveHistory(c)
+    },
+    [activeObject, saveHistory, syncActiveObject],
+  )
+
+  // switch image fit mode (cover / contain)
+  const updateImageFit = useCallback(
+    (fit: 'cover' | 'contain', target?: PlaceholderObject) => {
+      const c = canvasRef.current
+      const obj = target ?? (c?.getActiveObject() as PlaceholderObject | null)
+      if (!c || !obj || obj.placeholderType !== 'image') return
+
+      obj.placeholderFit = fit
+      c.renderAll()
+      syncActiveObject(obj)
+      refreshPlaceholders()
+      saveHistory(c)
+    },
+    [refreshPlaceholders, saveHistory, syncActiveObject],
+  )
 
   // delete active object
   const deleteActive = useCallback(() => {
@@ -424,8 +669,8 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     c.remove(activeObject)
     c.discardActiveObject()
     c.renderAll()
-    setActiveObject(null)
-  }, [activeObject])
+    syncActiveObject(null)
+  }, [activeObject, syncActiveObject])
 
   // keyboard shortcuts
   useEffect(() => {
@@ -475,13 +720,25 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
   const loadCanvasJson = useCallback(async (json: string) => {
     const c = canvasRef.current
     if (!c) return
+
+    try {
+      const parsed = JSON.parse(json)
+      const nextWidth = Number(parsed.width) || CANVAS_DEFAULT_W
+      const nextHeight = Number(parsed.height) || CANVAS_DEFAULT_H
+      setTemplateSize({ width: nextWidth, height: nextHeight })
+      c.setDimensions({ width: nextWidth, height: nextHeight })
+    } catch {
+      // ignore parse error and continue load
+    }
+
     skipSaveRef.current = true
     await loadWithReviver(c, json)
     c.renderAll()
+    fitToContainer()
     skipSaveRef.current = false
     refreshPlaceholders()
     saveHistory(c)
-  }, [refreshPlaceholders, saveHistory])
+  }, [fitToContainer, refreshPlaceholders, saveHistory])
 
   return {
     canvasRef,
@@ -494,7 +751,13 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     setBackgroundImage,
     addTextPlaceholder,
     addImagePlaceholder,
+    addLogoPlaceholder,
     bindField,
+    updateTextFontSize,
+    updateTextBoxWidth,
+    updateImageSize,
+    updateObjectTransform,
+    updateImageFit,
     deleteActive,
     refreshPlaceholders,
     exportAsDataUrl,

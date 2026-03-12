@@ -29,6 +29,7 @@ export function CanvasEditor({ canvasHook }: CanvasEditorProps) {
       const type = e.dataTransfer.getData('placeholder-type')
       if (type === 'text') canvasHook.addTextPlaceholder()
       if (type === 'image') canvasHook.addImagePlaceholder()
+      if (type === 'logo') canvasHook.addLogoPlaceholder()
     },
     [canvasHook],
   )

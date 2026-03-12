@@ -7,7 +7,7 @@ interface ToolbarProps {
 }
 
 export function Toolbar({ canvasHook }: ToolbarProps) {
-  const { addTextPlaceholder, addImagePlaceholder, deleteActive, undo, redo, activeObject } =
+  const { addTextPlaceholder, addImagePlaceholder, addLogoPlaceholder, deleteActive, undo, redo, activeObject } =
     canvasHook
 
   const handleDragStart = (e: React.DragEvent, type: string) => {
@@ -34,6 +34,16 @@ export function Toolbar({ canvasHook }: ToolbarProps) {
             draggable
             onDragStart={(e) => handleDragStart(e, 'image')}
           />
+        </Tooltip>
+        <Tooltip content="添加圆形Logo">
+          <Button
+            theme="borderless"
+            onClick={addLogoPlaceholder}
+            draggable
+            onDragStart={(e) => handleDragStart(e, 'logo')}
+          >
+            Logo
+          </Button>
         </Tooltip>
       </div>
       <div className="toolbar-divider" />

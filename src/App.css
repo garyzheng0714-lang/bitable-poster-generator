@@ -149,6 +149,7 @@ body {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
+  min-width: 0;
 }
 
 .header-template .semi-button {
@@ -166,6 +167,80 @@ body {
   border-radius: var(--r-sm);
   white-space: nowrap;
   letter-spacing: 0.02em;
+}
+
+.template-modal .semi-modal-body {
+  max-height: 62vh;
+  overflow-y: auto;
+}
+
+.template-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: var(--sp-2);
+}
+
+.template-card {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--sp-2);
+  background: var(--surface-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.template-thumb {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--r-sm);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+
+.template-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.template-thumb-empty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-tertiary);
+  font-size: 11px;
+}
+
+.template-card-meta {
+  min-width: 0;
+}
+
+.template-card-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.template-card-size {
+  font-size: 11px;
+  color: var(--ink-tertiary);
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.template-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
 }
 
 /* ── Standalone Banner ── */
@@ -406,6 +481,33 @@ body {
 .binding-empty-text {
   font-size: 12px;
   color: var(--ink-tertiary);
+}
+
+/* ── Property Panel ── */
+.property-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: 2px 0;
+}
+
+.property-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.property-label {
+  font-size: 12px;
+  color: var(--ink-secondary);
+}
+
+.property-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-tertiary);
+  line-height: 1.5;
 }
 
 /* ── Generate Panel (compact) ── */

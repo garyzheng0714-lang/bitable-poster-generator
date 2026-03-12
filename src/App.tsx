@@ -7,6 +7,7 @@ import { CanvasEditor } from './components/CanvasEditor'
 import { Toolbar } from './components/Toolbar'
 import { TemplateManager } from './components/TemplateManager'
 import { FieldBinder } from './components/FieldBinder'
+import { PropertyPanel } from './components/PropertyPanel'
 import { GeneratePanel } from './components/GeneratePanel'
 import './App.css'
 
@@ -66,6 +67,11 @@ export default function App() {
                 textFields={bitableHook.textFields}
                 imageFields={bitableHook.imageFields}
               />
+            </div>
+          </TabPane>
+          <TabPane tab="属性" itemKey="properties">
+            <div className="tab-content">
+              <PropertyPanel canvasHook={canvasHook} />
             </div>
           </TabPane>
           <TabPane tab="生成" itemKey="generate">
