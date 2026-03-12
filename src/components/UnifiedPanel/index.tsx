@@ -417,7 +417,6 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                   value={generateMode}
                   onChange={(e) => setGenerateMode(e.target.value as GenerateMode)}
                   type="button"
-                  size="small"
                 >
                   <Radio value="selected">选中行</Radio>
                   <Radio value="all">全部</Radio>
@@ -426,7 +425,6 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                   value={outputMode}
                   onChange={(e) => setOutputMode(e.target.value as OutputMode)}
                   type="button"
-                  size="small"
                 >
                   <Radio value="download">下载</Radio>
                   <Radio value="attachment">写入表格</Radio>
