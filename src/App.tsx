@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react'
-import { Spin, Typography, Tabs, TabPane, Banner } from '@douyinfe/semi-ui'
+import { Spin, Typography, Tabs, TabPane, Banner, Avatar, Tooltip } from '@douyinfe/semi-ui'
 import { useTheme } from './hooks/useTheme'
+import { useAuth } from './hooks/useAuth'
 import { useBitable } from './hooks/useBitable'
 import { useCanvas } from './hooks/useCanvas'
 import { CanvasEditor } from './components/CanvasEditor'
@@ -15,6 +16,7 @@ const { Title } = Typography
 
 export default function App() {
   useTheme()
+  const auth = useAuth()
   const bitableHook = useBitable()
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasHook = useCanvas(containerRef)
@@ -35,7 +37,21 @@ export default function App() {
           <div className="header-accent" />
           <Title heading={5} style={{ margin: 0 }}>海报生成器</Title>
         </div>
-        <TemplateManager canvasHook={canvasHook} />
+        <div className="header-right">
+          <TemplateManager canvasHook={canvasHook} />
+          {auth.user && (
+            <Tooltip content={auth.user.name} position="bottom">
+              <Avatar
+                size="extra-small"
+                src={auth.user.avatar_url || undefined}
+                alt={auth.user.name}
+                style={{ marginLeft: 8, cursor: 'default' }}
+              >
+                {auth.user.name?.[0]}
+              </Avatar>
+            </Tooltip>
+          )}
+        </div>
       </div>
 
       {bitableHook.isStandalone && (

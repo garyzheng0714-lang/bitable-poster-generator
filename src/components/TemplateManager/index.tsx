@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useCallback } from 'react'
 import { Button, Empty, Modal, Toast } from '@douyinfe/semi-ui'
 import { IconUpload } from '@douyinfe/semi-icons'
 import type { useCanvas } from '../../hooks/useCanvas'
@@ -17,11 +17,12 @@ interface TemplateManagerProps {
 export function TemplateManager({ canvasHook }: TemplateManagerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [visible, setVisible] = useState(false)
-  const [templates, setTemplates] = useState<TemplateConfig[]>(() => loadAllTemplates())
+  const [templates, setTemplates] = useState<TemplateConfig[]>([])
 
-  const refreshTemplates = () => {
-    setTemplates(loadAllTemplates())
-  }
+  const refreshTemplates = useCallback(async () => {
+    const list = await loadAllTemplates()
+    setTemplates(list)
+  }, [])
 
   const makeTemplateName = () => {
     const now = new Date()
@@ -37,7 +38,7 @@ export function TemplateManager({ canvasHook }: TemplateManagerProps) {
     e.target.value = ''
   }
 
-  const handleSaveTemplate = () => {
+  const handleSaveTemplate = async () => {
     const canvasJson = canvasHook.getCanvasJson()
     if (!canvasJson || canvasJson === '{}') {
       Toast.warning({ content: '画布为空，无法保存模板' })
@@ -56,8 +57,8 @@ export function TemplateManager({ canvasHook }: TemplateManagerProps) {
       updatedAt: new Date().toISOString(),
     }
 
-    saveTemplate(template)
-    refreshTemplates()
+    await saveTemplate(template)
+    await refreshTemplates()
     Toast.success({ content: '模板已保存' })
   }
 
@@ -67,11 +68,11 @@ export function TemplateManager({ canvasHook }: TemplateManagerProps) {
     Toast.success({ content: `已加载「${template.name}」` })
   }
 
-  const handleDeleteTemplate = (template: TemplateConfig) => {
+  const handleDeleteTemplate = async (template: TemplateConfig) => {
     const ok = window.confirm(`确定删除模板「${template.name}」吗？`)
     if (!ok) return
-    deleteTemplate(template.id)
-    refreshTemplates()
+    await deleteTemplate(template.id)
+    await refreshTemplates()
   }
 
   return (
@@ -101,8 +102,8 @@ export function TemplateManager({ canvasHook }: TemplateManagerProps) {
       <Button
         size="small"
         theme="borderless"
-        onClick={() => {
-          refreshTemplates()
+        onClick={async () => {
+          await refreshTemplates()
           setVisible(true)
         }}
       >

@@ -144,6 +144,12 @@ body {
   flex-shrink: 0;
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
 /* ── Header Template Controls ── */
 .header-template {
   display: flex;

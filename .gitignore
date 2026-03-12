@@ -24,3 +24,8 @@ dist-ssr
 *.sw?
 .playwright-mcp/
 .vercel
+.env
+.env.local
+data/
+server/node_modules
+.codepilot-uploads/
