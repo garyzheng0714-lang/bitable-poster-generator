@@ -2,6 +2,7 @@ import * as fabric from 'fabric'
 
 export interface TextboxWithBounds extends fabric.Textbox {
   placeholderBoxHeight?: number
+  placeholderFontSizeMax?: number
 }
 
 export const MIN_TEXTBOX_WIDTH = 40
@@ -45,7 +46,7 @@ export function fitTextboxText(
   const sourceText = normalizeText(options?.text ?? textObj.text)
   const maxFontSize = Math.max(
     MIN_TEXT_FONT_SIZE,
-    Math.round(options?.maxFontSize ?? textObj.fontSize ?? 36),
+    Math.round(options?.maxFontSize ?? textObj.placeholderFontSizeMax ?? textObj.fontSize ?? 36),
   )
   const minFontSize = Math.max(
     MIN_TEXT_FONT_SIZE,
@@ -53,6 +54,7 @@ export function fitTextboxText(
   )
 
   textObj.placeholderBoxHeight = height
+  textObj.placeholderFontSizeMax = maxFontSize
   textObj.set({
     width,
     text: sourceText,

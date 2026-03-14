@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import * as fabric from 'fabric'
 import {
   Button,
@@ -6,18 +6,13 @@ import {
   InputNumber,
   Toast,
   Progress,
-  RadioGroup,
-  Radio,
 } from '@douyinfe/semi-ui'
 import { IconPlay, IconDownload, IconClose, IconPlus } from '@douyinfe/semi-icons'
 import { bitable } from '@lark-base-open/js-sdk'
 import type { useCanvas } from '../../hooks/useCanvas'
 import type { PlaceholderObject } from '../../hooks/useCanvas'
 import type { useBitable } from '../../hooks/useBitable'
-import type { GenerateMode } from '../../types'
 import { generatePosterForRecord, downloadBlob, dataUrlToBlob } from '../../services/posterGenerator'
-
-type OutputMode = 'download' | 'attachment'
 
 interface Props {
   canvasHook: ReturnType<typeof useCanvas>
@@ -43,14 +38,34 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
     clearPreview,
   } = canvasHook
 
-  const { textFields, imageFields, attachmentFields, isStandalone } = bitableHook
+  const {
+    textFields,
+    imageFields,
+    attachmentFields,
+    isStandalone,
+    getCellText,
+    getAttachmentUrls,
+    getRecordIds,
+    writeAttachment,
+    createAttachmentField,
+  } = bitableHook
 
-  const [generateMode, setGenerateMode] = useState<GenerateMode>('selected')
-  const [outputMode, setOutputMode] = useState<OutputMode>('download')
   const [targetFieldId, setTargetFieldId] = useState<string | undefined>()
   const [generating, setGenerating] = useState(false)
+  const [generationScope, setGenerationScope] = useState<'selected' | 'all' | null>(null)
   const [progress, setProgress] = useState({ current: 0, total: 0 })
   const cancelledRef = useRef(false)
+
+  const effectiveTargetFieldId = useMemo(() => {
+    if (!targetFieldId) return attachmentFields[0]?.id
+    return attachmentFields.some((field) => field.id === targetFieldId)
+      ? targetFieldId
+      : attachmentFields[0]?.id
+  }, [attachmentFields, targetFieldId])
+
+  const allBound = placeholders.length > 0 && placeholders.every((p) => !!p.binding)
+  const missingBindings = placeholders.filter((p) => !p.binding)
+  const canGenerateToTable = allBound && !!effectiveTargetFieldId && !generating
 
   // Auto-preview when bitable selection changes
   useEffect(() => {
@@ -65,9 +80,11 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
           const hasBound = placeholders.some((p) => p.binding)
           if (hasBound) {
             await previewRecord(selection.recordId, {
-              getCellText: bitableHook.getCellText,
-              getAttachmentUrls: bitableHook.getAttachmentUrls,
+              getCellText,
+              getAttachmentUrls,
             })
+          } else {
+            clearPreview()
           }
         } else {
           clearPreview()
@@ -92,7 +109,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
       cancelled = true
       off?.()
     }
-  }, [isStandalone, placeholders, previewRecord, clearPreview, bitableHook])
+  }, [isStandalone, placeholders, previewRecord, clearPreview, getCellText, getAttachmentUrls])
 
   const handleBind = (placeholder: PlaceholderObject, fieldId: string | undefined) => {
     if (!fieldId) {
@@ -116,13 +133,20 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
     Toast.success({ content: '预览图已导出' })
   }
 
-  const handleGenerate = async () => {
+  const getSelectedRecordId = async (): Promise<string | null> => {
+    try {
+      const selection = await bitable.base.getSelection()
+      return selection?.recordId ?? null
+    } catch {
+      return null
+    }
+  }
+
+  const handleGenerate = async (scope: 'selected' | 'all') => {
     if (isStandalone) {
       handlePreviewExport()
       return
     }
-
-    clearPreview()
 
     const canvasJson = getCanvasJson()
     if (!canvasJson || canvasJson === '{}') {
@@ -130,33 +154,27 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
       return
     }
 
-    const hasBound = placeholders.some((p) => p.binding)
-    if (!hasBound) {
-      Toast.warning({ content: '请先绑定字段' })
+    if (!allBound) {
+      Toast.warning({ content: '请先完成全部占位框绑定' })
       return
     }
 
-    if (outputMode === 'attachment' && !targetFieldId) {
+    if (!effectiveTargetFieldId) {
       Toast.warning({ content: '请选择目标附件字段' })
       return
     }
 
     let recordIds: string[] = []
-    if (generateMode === 'selected') {
-      try {
-        const selection = await bitable.base.getSelection()
-        if (selection?.recordId) {
-          recordIds = [selection.recordId]
-        } else {
-          Toast.warning({ content: '请先选择一行数据' })
-          return
-        }
-      } catch {
+    if (scope === 'selected') {
+      const recordId = await getSelectedRecordId()
+      if (recordId) {
+        recordIds = [recordId]
+      } else {
         Toast.warning({ content: '无法获取选中行' })
         return
       }
     } else {
-      recordIds = await bitableHook.getRecordIds()
+      recordIds = await getRecordIds()
     }
 
     if (recordIds.length === 0) {
@@ -166,30 +184,32 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
 
     cancelledRef.current = false
     setGenerating(true)
+    setGenerationScope(scope)
     setProgress({ current: 0, total: recordIds.length })
 
     let successCount = 0
     for (const recordId of recordIds) {
       if (cancelledRef.current) {
         setGenerating(false)
+        setGenerationScope(null)
         Toast.info({ content: '已取消生成' })
         return
       }
 
       try {
         const blob = await generatePosterForRecord(canvasJson, recordId, {
-          getCellText: bitableHook.getCellText,
-          getAttachmentUrls: bitableHook.getAttachmentUrls,
+          getCellText,
+          getAttachmentUrls,
         }, 2)
 
         if (blob) {
-          if (outputMode === 'attachment' && targetFieldId) {
-            const ok = await bitableHook.writeAttachment(targetFieldId, recordId, blob, `poster-${recordId}.png`)
-            if (ok) successCount++
-          } else {
-            downloadBlob(blob, `poster-${recordId}.png`)
-            successCount++
-          }
+          const ok = await writeAttachment(
+            effectiveTargetFieldId,
+            recordId,
+            blob,
+            `poster-${recordId}.png`,
+          )
+          if (ok) successCount++
         }
         setProgress((prev) => ({ ...prev, current: prev.current + 1 }))
       } catch (err) {
@@ -199,11 +219,8 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
     }
 
     setGenerating(false)
-    if (outputMode === 'attachment') {
-      Toast.success({ content: `已写入 ${successCount} 张海报到表格` })
-    } else {
-      Toast.success({ content: `已下载 ${successCount} 张海报` })
-    }
+    setGenerationScope(null)
+    Toast.success({ content: `已写入 ${successCount} 张海报到表格` })
   }
 
   return (
@@ -221,7 +238,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
             const isCircle = p.placeholderShape === 'circle'
 
             const textObj = p as unknown as fabric.Textbox
-            const fontSize = isText ? Math.round(textObj.fontSize ?? 36) : 0
+            const fontSize = isText ? Math.round(p.placeholderFontSizeMax ?? textObj.fontSize ?? 36) : 0
             const textBoxWidth = isText ? Math.round((textObj.width ?? 240) * (textObj.scaleX ?? 1)) : 0
             const textBoxHeight = isText ? Math.round(p.placeholderBoxHeight ?? textObj.height ?? 120) : 0
             const textColor = isText ? String(textObj.fill ?? '#333333') : ''
@@ -261,7 +278,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                     style={{ width: 120, flexShrink: 0 }}
                     placeholder="绑定字段"
                     value={p.binding?.fieldId ?? undefined}
-                    showClear
+                    showClear={false}
                     onChange={(v) => handleBind(p, v as string | undefined)}
                     optionList={fields.map((f) => ({
                       label: f.name,
@@ -450,69 +467,72 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
           </Button>
         ) : (
           <>
-            {!generating && (
-              <div className="generate-options">
-                <RadioGroup
-                  value={generateMode}
-                  onChange={(e) => setGenerateMode(e.target.value as GenerateMode)}
-                  type="button"
-                >
-                  <Radio value="selected">选中行</Radio>
-                  <Radio value="all">全部</Radio>
-                </RadioGroup>
-                <RadioGroup
-                  value={outputMode}
-                  onChange={(e) => setOutputMode(e.target.value as OutputMode)}
-                  type="button"
-                >
-                  <Radio value="download">下载</Radio>
-                  <Radio value="attachment">写入表格</Radio>
-                </RadioGroup>
-              </div>
-            )}
+            <div className={`generate-summary ${allBound ? 'ready' : 'warning'}`}>
+              {placeholders.length === 0
+                ? '请先添加占位框并完成字段绑定。'
+                : missingBindings.length > 0
+                ? `还有 ${missingBindings.length} 个占位框未绑定，生成前必须全部绑定。`
+                : '已完成绑定，选择附件字段后可直接写入表格。'}
+            </div>
 
-            {outputMode === 'attachment' && !generating && (
-              <div className="generate-field-row">
-                <Select
-                  size="small"
-                  placeholder="选择附件字段"
-                  value={targetFieldId}
-                  onChange={(v) => setTargetFieldId(v as string | undefined)}
-                  style={{ flex: 1 }}
-                  optionList={attachmentFields.map((f) => ({
-                    label: f.name,
-                    value: f.id,
-                  }))}
-                  emptyContent="暂无附件字段"
-                  showClear
-                />
-                <Button
-                  size="small"
-                  icon={<IconPlus />}
-                  onClick={async () => {
-                    const fieldId = await bitableHook.createAttachmentField('海报')
-                    if (fieldId) {
-                      setTargetFieldId(fieldId)
-                      Toast.success({ content: '已创建「海报」附件字段' })
-                    }
-                  }}
-                  style={{ flexShrink: 0 }}
-                />
-              </div>
-            )}
+            <div className="generate-field-row">
+              <Select
+                size="small"
+                placeholder="选择写入的附件字段"
+                value={effectiveTargetFieldId}
+                onChange={(v) => setTargetFieldId(v as string | undefined)}
+                style={{ flex: 1 }}
+                optionList={attachmentFields.map((f) => ({
+                  label: f.name,
+                  value: f.id,
+                }))}
+                emptyContent="暂无附件字段"
+                showClear={false}
+              />
+              <Button
+                size="small"
+                icon={<IconPlus />}
+                onClick={async () => {
+                  const fieldId = await createAttachmentField('海报')
+                  if (fieldId) {
+                    setTargetFieldId(fieldId)
+                    Toast.success({ content: '已创建「海报」附件字段' })
+                  }
+                }}
+                style={{ flexShrink: 0 }}
+              />
+            </div>
 
             <div className="generate-bar">
               <Button
                 theme="solid"
                 type="primary"
-                icon={generating ? undefined : <IconPlay />}
-                loading={generating}
-                onClick={handleGenerate}
-                disabled={generating}
+                icon={generating && generationScope === 'selected' ? undefined : <IconPlay />}
+                loading={generating && generationScope === 'selected'}
+                onClick={() => { void handleGenerate('selected') }}
+                disabled={!canGenerateToTable}
+                className="generate-split-button"
                 style={{ flex: 1 }}
                 size="small"
               >
-                {generating ? `${progress.current}/${progress.total}` : '生成海报'}
+                {generating && generationScope === 'selected'
+                  ? `生成中 ${progress.current}/${progress.total}`
+                  : '生成单行'}
+              </Button>
+              <Button
+                theme="solid"
+                type="primary"
+                icon={generating && generationScope === 'all' ? undefined : <IconDownload />}
+                loading={generating && generationScope === 'all'}
+                onClick={() => { void handleGenerate('all') }}
+                disabled={!canGenerateToTable}
+                className="generate-split-button"
+                style={{ flex: 1 }}
+                size="small"
+              >
+                {generating && generationScope === 'all'
+                  ? `生成中 ${progress.current}/${progress.total}`
+                  : '生成整表'}
               </Button>
               {generating && (
                 <Button

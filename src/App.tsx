@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { Spin, Typography, Banner, Avatar, Button, Dropdown } from '@douyinfe/semi-ui'
 import { useTheme } from './hooks/useTheme'
 import { useAuth } from './hooks/useAuth'
@@ -19,7 +19,32 @@ export default function App() {
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasHook = useCanvas(containerRef)
   const [toolbarCollapsed, setToolbarCollapsed] = useState(false)
+  const [bottomPanelHeight, setBottomPanelHeight] = useState(320)
+  const dragStartRef = useRef<{ startY: number; startHeight: number } | null>(null)
   const toggleToolbar = useCallback(() => setToolbarCollapsed((v) => !v), [])
+
+  useEffect(() => {
+    const handleMove = (e: MouseEvent) => {
+      const start = dragStartRef.current
+      if (!start) return
+
+      const next = Math.min(520, Math.max(180, start.startHeight + (start.startY - e.clientY)))
+      setBottomPanelHeight(next)
+    }
+
+    const handleUp = () => {
+      dragStartRef.current = null
+      document.body.classList.remove('panel-resizing')
+    }
+
+    window.addEventListener('mousemove', handleMove)
+    window.addEventListener('mouseup', handleUp)
+    return () => {
+      window.removeEventListener('mousemove', handleMove)
+      window.removeEventListener('mouseup', handleUp)
+      document.body.classList.remove('panel-resizing')
+    }
+  }, [])
 
   return (
     <div className="app">
@@ -99,7 +124,16 @@ export default function App() {
         <CanvasEditor canvasHook={canvasHook} />
       </div>
 
-      <div className="bottom-panel">
+      <div className="bottom-panel" style={{ height: bottomPanelHeight }}>
+        <div
+          className="bottom-panel-resize"
+          onMouseDown={(e) => {
+            dragStartRef.current = { startY: e.clientY, startHeight: bottomPanelHeight }
+            document.body.classList.add('panel-resizing')
+          }}
+        >
+          <span className="bottom-panel-resize-grip" />
+        </div>
         <UnifiedPanel canvasHook={canvasHook} bitableHook={bitableHook} />
       </div>
     </div>

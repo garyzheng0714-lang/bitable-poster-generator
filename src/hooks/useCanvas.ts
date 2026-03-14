@@ -19,6 +19,7 @@ export interface PlaceholderObject extends fabric.FabricObject {
   placeholderShape?: 'rect' | 'circle'
   placeholderFit?: 'cover' | 'contain'
   placeholderBoxHeight?: number
+  placeholderFontSizeMax?: number
   binding?: PlaceholderBinding | null
 }
 
@@ -36,6 +37,7 @@ async function loadWithReviver(
       ;(instance as PlaceholderObject).placeholderFit =
         _serialized.placeholderFit ?? (_serialized.placeholderType === 'image' ? 'cover' : undefined)
       ;(instance as PlaceholderObject).placeholderBoxHeight = _serialized.placeholderBoxHeight
+      ;(instance as PlaceholderObject).placeholderFontSizeMax = _serialized.placeholderFontSizeMax
       ;(instance as PlaceholderObject).binding = _serialized.binding ?? null
     }
     if (_serialized._isBg) {
@@ -67,6 +69,7 @@ function serializeCanvas(canvas: fabric.Canvas): string {
         objData.placeholderShape = obj.placeholderShape
         objData.placeholderFit = obj.placeholderFit
         objData.placeholderBoxHeight = obj.placeholderBoxHeight
+        objData.placeholderFontSizeMax = obj.placeholderFontSizeMax
         objData.binding = obj.binding
         if ((obj as any)._isBg) objData._isBg = true
       }
@@ -303,6 +306,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
       const active = c.getActiveObject() as PlaceholderObject | null
       for (const obj of c.getObjects() as PlaceholderObject[]) {
         if (obj.placeholderType === 'text') {
+          if ((obj as fabric.Textbox).isEditing) continue
           drawTextPlaceholderGuide(ctx, c, obj, active?.placeholderId === obj.placeholderId)
         }
       }
@@ -355,9 +359,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
       if (!target || target.placeholderType !== 'text') return
 
       const textObj = target as unknown as TextboxWithBounds
-      fitTextboxText(textObj, {
-        maxFontSize: Math.round(textObj.fontSize ?? 36),
-      })
+      fitTextboxText(textObj)
       c.renderAll()
       syncActiveObject(target)
       saveHistory(c)
@@ -376,10 +378,17 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
             48,
             Math.round((textObj.placeholderBoxHeight ?? textObj.height ?? 48) * sy),
           )
-          textObj.placeholderBoxHeight = nextBoxHeight
+          const nextFontSize = Math.max(
+            8,
+            Math.round((textObj.placeholderFontSizeMax ?? textObj.fontSize ?? 36) * sy),
+          )
+          textObj.set({
+            placeholderBoxHeight: nextBoxHeight,
+            placeholderFontSizeMax: nextFontSize,
+          })
           textObj.set({ width: newWidth, scaleX: 1, scaleY: 1 })
           fitTextboxText(textObj, {
-            maxFontSize: Math.round(textObj.fontSize ?? 36),
+            maxFontSize: nextFontSize,
           })
           changed = true
         }
@@ -580,6 +589,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     text.placeholderType = 'text'
     text.placeholderLabel = 'Text'
     text.placeholderBoxHeight = boxHeight
+    text.placeholderFontSizeMax = 36
     text.binding = null
     ;(text as fabric.Textbox).setPositionByOrigin(new fabric.Point(centerX, centerY), 'center', 'center')
     fitTextboxText(text as unknown as TextboxWithBounds, {
@@ -671,9 +681,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     if (binding && obj.placeholderType === 'text') {
       const textObj = obj as unknown as TextboxWithBounds
       textObj.set('text', `{{${binding.fieldName}}}`)
-      fitTextboxText(textObj, {
-        maxFontSize: Math.round(textObj.fontSize ?? 36),
-      })
+      fitTextboxText(textObj)
     }
     if (binding && obj.placeholderType === 'image') {
       obj.set('placeholderLabel', binding.fieldName)
@@ -693,6 +701,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
 
     const size = Math.max(8, Math.round(fontSize))
     const textObj = obj as unknown as TextboxWithBounds
+    textObj.set('placeholderFontSizeMax', size)
     textObj.set({ scaleX: 1, scaleY: 1 })
     fitTextboxText(textObj, {
       maxFontSize: size,
@@ -711,9 +720,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     const w = Math.max(40, Math.round(width))
     const textObj = obj as unknown as TextboxWithBounds
     textObj.set({ width: w, scaleX: 1, scaleY: 1 })
-    fitTextboxText(textObj, {
-      maxFontSize: Math.round(textObj.fontSize ?? 36),
-    })
+    fitTextboxText(textObj)
     c.renderAll()
     syncActiveObject(obj)
     saveHistory(c)
@@ -726,9 +733,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
 
     const textObj = obj as unknown as TextboxWithBounds
     textObj.set('placeholderBoxHeight', Math.max(48, Math.round(height)))
-    fitTextboxText(textObj, {
-      maxFontSize: Math.round(textObj.fontSize ?? 36),
-    })
+    fitTextboxText(textObj)
     c.renderAll()
     syncActiveObject(obj)
     saveHistory(c)
@@ -741,9 +746,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
 
     const textObj = obj as unknown as TextboxWithBounds
     textObj.set({ textAlign: align })
-    fitTextboxText(textObj, {
-      maxFontSize: Math.round(textObj.fontSize ?? 36),
-    })
+    fitTextboxText(textObj)
     c.renderAll()
     syncActiveObject(obj)
     saveHistory(c)
@@ -828,7 +831,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
       const obj = target ?? (c?.getActiveObject() as PlaceholderObject | null)
       if (!c || !obj || obj.placeholderType !== 'image') return
 
-      obj.placeholderFit = fit
+      obj.set('placeholderFit', fit)
       if (obj.placeholderId && previewRef.current?.overlayMap) {
         const entry = previewRef.current.overlayMap.get(obj.placeholderId)
         if (entry) repositionOverlay(obj, entry)
@@ -848,16 +851,14 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     if (!c || !obj || obj.placeholderType !== 'text') return
     const textObj = obj as unknown as TextboxWithBounds
     textObj.set({ fill: color })
-    fitTextboxText(textObj, {
-      maxFontSize: Math.round(textObj.fontSize ?? 36),
-    })
+    fitTextboxText(textObj)
     c.renderAll()
     syncActiveObject(obj)
     saveHistory(c)
   }, [activeObject, saveHistory, syncActiveObject])
 
   // clear live preview (restore original text, remove image overlays)
-  const clearPreview = useCallback(() => {
+  const clearPreview = useCallback((options?: { skipRender?: boolean }) => {
     const c = canvasRef.current
     const preview = previewRef.current
     if (!c || !preview) return
@@ -885,7 +886,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
 
     previewRef.current = null
     skipSaveRef.current = false
-    c.renderAll()
+    if (!options?.skipRender) c.renderAll()
   }, [])
 
   // live preview: render a record's data into placeholders on canvas
@@ -900,7 +901,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     if (!c) return
 
     // clear any existing preview first
-    clearPreview()
+    clearPreview({ skipRender: true })
 
     skipSaveRef.current = true
 
@@ -918,7 +919,10 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
       if (obj.placeholderType === 'text') {
         const textObj = obj as unknown as TextboxWithBounds
         textOriginals.set(obj.placeholderId, textObj.text)
-        fontSizeOriginals.set(obj.placeholderId, textObj.fontSize ?? 36)
+        fontSizeOriginals.set(
+          obj.placeholderId,
+          textObj.placeholderFontSizeMax ?? textObj.fontSize ?? 36,
+        )
         try {
           const text = await getter.getCellText(fieldId, recordId)
           fitTextboxText(textObj, {
