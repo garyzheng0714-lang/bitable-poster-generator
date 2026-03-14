@@ -29,10 +29,25 @@ export function CanvasEditor({ canvasHook }: CanvasEditorProps) {
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault()
+      e.stopPropagation()
       const type = e.dataTransfer.getData('placeholder-type')
-      if (type === 'text') canvasHook.addTextPlaceholder()
-      if (type === 'image') canvasHook.addImagePlaceholder()
-      if (type === 'logo') canvasHook.addLogoPlaceholder()
+      const canvas = canvasHook.canvas
+      const rect = canvas?.upperCanvasEl.getBoundingClientRect()
+      const zoom = canvas?.getZoom() || 1
+      const point = rect
+        && e.clientX >= rect.left
+        && e.clientX <= rect.right
+        && e.clientY >= rect.top
+        && e.clientY <= rect.bottom
+        ? {
+            x: (e.clientX - rect.left) / zoom,
+            y: (e.clientY - rect.top) / zoom,
+          }
+        : undefined
+
+      if (type === 'text') canvasHook.addTextPlaceholder(point)
+      if (type === 'image') canvasHook.addImagePlaceholder(point)
+      if (type === 'logo') canvasHook.addLogoPlaceholder(point)
     },
     [canvasHook],
   )

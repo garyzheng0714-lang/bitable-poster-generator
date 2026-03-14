@@ -32,6 +32,8 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
     bindField,
     updateTextFontSize,
     updateTextBoxWidth,
+    updateTextBoxHeight,
+    updateTextAlign,
     updateImageSize,
     updateImageFit,
     updateTextColor,
@@ -221,7 +223,11 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
             const textObj = p as unknown as fabric.Textbox
             const fontSize = isText ? Math.round(textObj.fontSize ?? 36) : 0
             const textBoxWidth = isText ? Math.round((textObj.width ?? 240) * (textObj.scaleX ?? 1)) : 0
+            const textBoxHeight = isText ? Math.round(p.placeholderBoxHeight ?? textObj.height ?? 120) : 0
             const textColor = isText ? String(textObj.fill ?? '#333333') : ''
+            const textAlign = isText
+              ? ((textObj.textAlign as 'left' | 'center' | 'right' | undefined) ?? 'center')
+              : 'center'
 
             const imgW = !isText ? Math.round((p.width ?? 0) * (p.scaleX ?? 1)) : 0
             const imgH = !isText ? Math.round((p.height ?? 0) * (p.scaleY ?? 1)) : 0
@@ -242,7 +248,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                     className="ph-select-target"
                     onClick={() => {
                       canvas?.setActiveObject(p)
-                      canvas?.renderAll()
+                      canvas?.requestRenderAll()
                     }}
                   >
                     <span className={`ph-badge ${isText ? 'text' : 'image'}`}>
@@ -279,7 +285,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                             step={1}
                             value={fontSize}
                             onChange={(v) => {
-                              if (typeof v === 'number') updateTextFontSize(v)
+                              if (typeof v === 'number') updateTextFontSize(v, p)
                             }}
                             hideButtons
                             style={{ width: 52 }}
@@ -294,10 +300,43 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                             step={1}
                             value={textBoxWidth}
                             onChange={(v) => {
-                              if (typeof v === 'number') updateTextBoxWidth(v)
+                              if (typeof v === 'number') updateTextBoxWidth(v, p)
                             }}
                             hideButtons
                             style={{ width: 60 }}
+                          />
+                        </div>
+                        <div className="prop-field">
+                          <span className="prop-label">框高</span>
+                          <InputNumber
+                            size="small"
+                            min={48}
+                            max={2000}
+                            step={1}
+                            value={textBoxHeight}
+                            onChange={(v) => {
+                              if (typeof v === 'number') updateTextBoxHeight(v, p)
+                            }}
+                            hideButtons
+                            style={{ width: 60 }}
+                          />
+                        </div>
+                        <div className="prop-field">
+                          <span className="prop-label">对齐</span>
+                          <Select
+                            size="small"
+                            value={textAlign}
+                            style={{ width: 84 }}
+                            optionList={[
+                              { label: '居中', value: 'center' },
+                              { label: '靠左', value: 'left' },
+                              { label: '靠右', value: 'right' },
+                            ]}
+                            onChange={(v) => {
+                              if (v === 'left' || v === 'center' || v === 'right') {
+                                updateTextAlign(v, p)
+                              }
+                            }}
                           />
                         </div>
                         <div className="prop-field">
@@ -305,7 +344,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                           <input
                             type="color"
                             value={textColor}
-                            onChange={(e) => updateTextColor(e.target.value)}
+                            onChange={(e) => updateTextColor(e.target.value, p)}
                             onClick={(e) => e.stopPropagation()}
                             className="color-picker"
                           />
@@ -322,7 +361,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                           step={1}
                           value={diameter}
                           onChange={(v) => {
-                            if (typeof v === 'number') updateImageSize({ diameter: v })
+                            if (typeof v === 'number') updateImageSize({ diameter: v }, p)
                           }}
                           hideButtons
                           style={{ width: 60 }}
@@ -340,7 +379,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                             step={1}
                             value={imgW}
                             onChange={(v) => {
-                              if (typeof v === 'number') updateImageSize({ width: v, height: imgH })
+                              if (typeof v === 'number') updateImageSize({ width: v, height: imgH }, p)
                             }}
                             hideButtons
                             style={{ width: 56 }}
@@ -355,7 +394,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                             step={1}
                             value={imgH}
                             onChange={(v) => {
-                              if (typeof v === 'number') updateImageSize({ width: imgW, height: v })
+                              if (typeof v === 'number') updateImageSize({ width: imgW, height: v }, p)
                             }}
                             hideButtons
                             style={{ width: 56 }}
@@ -375,7 +414,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                             { label: '完整', value: 'contain' },
                           ]}
                           onChange={(v) => {
-                            if (v === 'cover' || v === 'contain') updateImageFit(v)
+                            if (v === 'cover' || v === 'contain') updateImageFit(v, p)
                           }}
                         />
                       </div>

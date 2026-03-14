@@ -21,7 +21,7 @@ export function Toolbar({ canvasHook }: ToolbarProps) {
           <Button
             icon={<IconFont />}
             theme="borderless"
-            onClick={addTextPlaceholder}
+            onClick={() => addTextPlaceholder()}
             draggable
             onDragStart={(e) => handleDragStart(e, 'text')}
           />
@@ -30,7 +30,7 @@ export function Toolbar({ canvasHook }: ToolbarProps) {
           <Button
             icon={<IconImage />}
             theme="borderless"
-            onClick={addImagePlaceholder}
+            onClick={() => addImagePlaceholder()}
             draggable
             onDragStart={(e) => handleDragStart(e, 'image')}
           />
@@ -43,7 +43,7 @@ export function Toolbar({ canvasHook }: ToolbarProps) {
               </svg>
             }
             theme="borderless"
-            onClick={addLogoPlaceholder}
+            onClick={() => addLogoPlaceholder()}
             draggable
             onDragStart={(e) => handleDragStart(e, 'logo')}
           />

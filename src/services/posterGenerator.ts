@@ -1,6 +1,7 @@
 import * as fabric from 'fabric'
 import type { PlaceholderObject } from '../hooks/useCanvas'
 import { loadWithReviver } from '../hooks/useCanvas'
+import { fitTextboxText, type TextboxWithBounds } from '../utils/textLayout'
 
 interface FieldValueGetter {
   getCellText: (fieldId: string, recordId: string) => Promise<string>
@@ -114,20 +115,11 @@ export async function generatePosterForRecord(
 
     if (obj.placeholderType === 'text') {
       const text = await getter.getCellText(fieldId, recordId)
-      const textObj = obj as unknown as fabric.Textbox
-      textObj.set('text', text || ' ')
-      // Auto-fit: shrink fontSize to fit text in one line within box width
-      if (textObj instanceof fabric.Textbox && textObj.width) {
-        const maxSize = textObj.fontSize ?? 36
-        let size = maxSize
-        while (size > 8) {
-          textObj.set({ fontSize: size })
-          textObj.initDimensions()
-          const lineHeight = size * (textObj.lineHeight ?? 1.2)
-          if (textObj.height! <= lineHeight * 1.3) break
-          size--
-        }
-      }
+      const textObj = obj as unknown as TextboxWithBounds
+      fitTextboxText(textObj, {
+        text: text || ' ',
+        maxFontSize: Math.round(textObj.fontSize ?? 36),
+      })
     }
 
     if (obj.placeholderType === 'image') {
