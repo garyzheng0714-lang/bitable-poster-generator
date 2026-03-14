@@ -99,8 +99,8 @@ function drawTextPlaceholderGuide(
   ctx.rotate(angle)
   ctx.beginPath()
   ctx.roundRect(-((width * zoom) / 2), -((height * zoom) / 2), width * zoom, height * zoom, 10)
-  ctx.fillStyle = isActive ? 'rgba(198, 96, 50, 0.08)' : 'rgba(198, 96, 50, 0.04)'
-  ctx.strokeStyle = isActive ? 'rgba(198, 96, 50, 0.68)' : 'rgba(198, 96, 50, 0.32)'
+  ctx.fillStyle = isActive ? 'rgba(37, 99, 235, 0.2)' : 'rgba(37, 99, 235, 0.13)'
+  ctx.strokeStyle = isActive ? 'rgba(37, 99, 235, 0.85)' : 'rgba(37, 99, 235, 0.55)'
   ctx.lineWidth = isActive ? 1.4 : 1
   ctx.setLineDash(isActive ? [6, 4] : [4, 5])
   ctx.fill()
@@ -365,6 +365,22 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
       saveHistory(c)
     })
 
+    c.on('text:changed', (e) => {
+      const target = e.target as PlaceholderObject
+      if (!target || target.placeholderType !== 'text') return
+
+      const textObj = target as unknown as TextboxWithBounds
+      const singleLineText = String(textObj.text ?? '').replace(/\r?\n+/g, ' ')
+      if (singleLineText !== textObj.text) {
+        textObj.set('text', singleLineText)
+      }
+      fitTextboxText(textObj, {
+        preserveCenter: false,
+      })
+      c.requestRenderAll()
+      syncActiveObject(target)
+    })
+
     c.on('object:modified', (e) => {
       const target = e.target as PlaceholderObject
       let changed = false
@@ -579,9 +595,10 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
       fontSize: 36,
       fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
       fill: '#2f261f',
+      fontWeight: '700',
       editable: true,
       padding: 8,
-      splitByGrapheme: true,
+      splitByGrapheme: false,
       textAlign: 'center',
     }) as PlaceholderObject
 
@@ -618,9 +635,9 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
       top: centerY - h / 2,
       width: w,
       height: h,
-      fill: 'rgba(0, 0, 0, 0.03)',
-      stroke: 'rgba(0, 0, 0, 0.12)',
-      strokeWidth: 1,
+      fill: 'rgba(37, 99, 235, 0.16)',
+      stroke: 'rgba(37, 99, 235, 0.72)',
+      strokeWidth: 1.5,
       rx: 2,
       ry: 2,
       padding: 4,
@@ -653,9 +670,9 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
       left: centerX - diameter / 2,
       top: centerY - diameter / 2,
       radius: diameter / 2,
-      fill: 'rgba(0, 0, 0, 0.03)',
-      stroke: 'rgba(0, 0, 0, 0.12)',
-      strokeWidth: 1,
+      fill: 'rgba(37, 99, 235, 0.16)',
+      stroke: 'rgba(37, 99, 235, 0.72)',
+      strokeWidth: 1.5,
       padding: 4,
     }) as unknown as PlaceholderObject
 
@@ -746,6 +763,21 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
 
     const textObj = obj as unknown as TextboxWithBounds
     textObj.set({ textAlign: align })
+    fitTextboxText(textObj)
+    c.renderAll()
+    syncActiveObject(obj)
+    saveHistory(c)
+  }, [activeObject, saveHistory, syncActiveObject])
+
+  const updateTextFontWeight = useCallback((weight: '400' | '700', target?: PlaceholderObject) => {
+    const c = canvasRef.current
+    const obj = target ?? activeObject
+    if (!c || !obj || obj.placeholderType !== 'text') return
+
+    const textObj = obj as unknown as TextboxWithBounds
+    textObj.set({
+      fontWeight: weight,
+    })
     fitTextboxText(textObj)
     c.renderAll()
     syncActiveObject(obj)
@@ -1110,6 +1142,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     updateTextBoxWidth,
     updateTextBoxHeight,
     updateTextAlign,
+    updateTextFontWeight,
     updateImageSize,
     updateObjectTransform,
     updateImageFit,

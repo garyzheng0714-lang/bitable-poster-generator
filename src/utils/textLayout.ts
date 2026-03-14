@@ -11,11 +11,19 @@ export const MIN_TEXT_FONT_SIZE = 8
 
 function normalizeText(text?: string | null): string {
   if (!text || text.length === 0) return ' '
-  return text
+  const singleLine = String(text).replace(/\r?\n+/g, ' ').replace(/\s{2,}/g, ' ').trim()
+  return singleLine.length > 0 ? singleLine : ' '
 }
 
-function fitsWithinHeight(textObj: TextboxWithBounds, height: number): boolean {
-  return (textObj.height ?? 0) <= height + 0.5
+function fitsSingleLineWidth(textObj: TextboxWithBounds, width: number): boolean {
+  const lines = (textObj.textLines?.length ?? 1)
+  if (lines > 1) return false
+
+  const lineWidth = typeof textObj.getLineWidth === 'function'
+    ? textObj.getLineWidth(0)
+    : (textObj.width ?? 0)
+  if (!Number.isFinite(lineWidth)) return true
+  return lineWidth <= width + 0.5
 }
 
 export function getTextboxBounds(textObj: TextboxWithBounds): { width: number; height: number } {
@@ -58,7 +66,7 @@ export function fitTextboxText(
   textObj.set({
     width,
     text: sourceText,
-    splitByGrapheme: true,
+    splitByGrapheme: false,
     scaleX: 1,
     scaleY: 1,
   })
@@ -67,7 +75,7 @@ export function fitTextboxText(
   for (let size = maxFontSize; size >= minFontSize; size -= 1) {
     textObj.set({ fontSize: size })
     textObj.initDimensions()
-    if (fitsWithinHeight(textObj, height)) {
+    if (fitsSingleLineWidth(textObj, width)) {
       fitted = true
       break
     }
@@ -78,7 +86,7 @@ export function fitTextboxText(
     textObj.set({ fontSize: minFontSize })
     textObj.initDimensions()
 
-    if (!fitsWithinHeight(textObj, height)) {
+    if (!fitsSingleLineWidth(textObj, width)) {
       const graphemes = Array.from(sourceText)
       let low = 0
       let high = graphemes.length
@@ -87,12 +95,14 @@ export function fitTextboxText(
       while (low <= high) {
         const mid = Math.floor((low + high) / 2)
         const base = graphemes.slice(0, mid).join('').trimEnd()
-        const candidate = mid >= graphemes.length ? sourceText : `${base || graphemes[0] || ''}…`
+        const candidate = mid >= graphemes.length
+          ? sourceText
+          : `${base || graphemes[0] || ''}…`
 
         textObj.set({ text: candidate || ' ' })
         textObj.initDimensions()
 
-        if (fitsWithinHeight(textObj, height)) {
+        if (fitsSingleLineWidth(textObj, width)) {
           bestText = candidate || ' '
           low = mid + 1
         } else {

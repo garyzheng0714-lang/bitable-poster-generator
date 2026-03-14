@@ -29,7 +29,9 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
     updateTextBoxWidth,
     updateTextBoxHeight,
     updateTextAlign,
+    updateTextFontWeight,
     updateImageSize,
+    updateObjectTransform,
     updateImageFit,
     updateTextColor,
     getCanvasJson,
@@ -241,16 +243,23 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
             const fontSize = isText ? Math.round(p.placeholderFontSizeMax ?? textObj.fontSize ?? 36) : 0
             const textBoxWidth = isText ? Math.round((textObj.width ?? 240) * (textObj.scaleX ?? 1)) : 0
             const textBoxHeight = isText ? Math.round(p.placeholderBoxHeight ?? textObj.height ?? 120) : 0
+            const fontWeight = isText ? String(textObj.fontWeight ?? '700') : '400'
             const textColor = isText ? String(textObj.fill ?? '#333333') : ''
             const textAlign = isText
               ? ((textObj.textAlign as 'left' | 'center' | 'right' | undefined) ?? 'center')
               : 'center'
+
+            const posX = Math.round(p.left ?? 0)
+            const posY = Math.round(p.top ?? 0)
+            const angle = Math.round(p.angle ?? 0)
 
             const imgW = !isText ? Math.round((p.width ?? 0) * (p.scaleX ?? 1)) : 0
             const imgH = !isText ? Math.round((p.height ?? 0) * (p.scaleY ?? 1)) : 0
             const diameter = !isText && isCircle && p instanceof fabric.Circle
               ? Math.round((p.radius ?? 0) * 2 * (p.scaleX ?? 1))
               : 0
+            const metricW = isText ? textBoxWidth : (isCircle ? diameter : imgW)
+            const metricH = isText ? textBoxHeight : (isCircle ? diameter : imgH)
 
             const label = p.binding?.fieldName
               ?? (isText ? '文字' : isCircle ? 'Logo' : '图片')
@@ -288,9 +297,63 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                     clickToHide
                   />
                 </div>
+                <div className="ph-metrics">
+                  X {posX} · Y {posY} · W {metricW} · H {metricH} · 角度 {angle}°
+                </div>
 
                 {isActive && (
                   <div className="placeholder-row-props">
+                    <div className="prop-field">
+                      <span className="prop-label">X</span>
+                      <InputNumber
+                        size="small"
+                        min={-5000}
+                        max={5000}
+                        step={1}
+                        value={posX}
+                        onChange={(v) => {
+                          if (typeof v === 'number') {
+                            updateObjectTransform({ left: v, top: posY, angle }, p)
+                          }
+                        }}
+                        hideButtons
+                        style={{ width: 96 }}
+                      />
+                    </div>
+                    <div className="prop-field">
+                      <span className="prop-label">Y</span>
+                      <InputNumber
+                        size="small"
+                        min={-5000}
+                        max={5000}
+                        step={1}
+                        value={posY}
+                        onChange={(v) => {
+                          if (typeof v === 'number') {
+                            updateObjectTransform({ left: posX, top: v, angle }, p)
+                          }
+                        }}
+                        hideButtons
+                        style={{ width: 96 }}
+                      />
+                    </div>
+                    <div className="prop-field">
+                      <span className="prop-label">角度</span>
+                      <InputNumber
+                        size="small"
+                        min={-360}
+                        max={360}
+                        step={1}
+                        value={angle}
+                        onChange={(v) => {
+                          if (typeof v === 'number') {
+                            updateObjectTransform({ left: posX, top: posY, angle: v }, p)
+                          }
+                        }}
+                        hideButtons
+                        style={{ width: 96 }}
+                      />
+                    </div>
                     {isText && (
                       <>
                         <div className="prop-field">
@@ -352,6 +415,23 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                             onChange={(v) => {
                               if (v === 'left' || v === 'center' || v === 'right') {
                                 updateTextAlign(v, p)
+                              }
+                            }}
+                          />
+                        </div>
+                        <div className="prop-field">
+                          <span className="prop-label">字重</span>
+                          <Select
+                            size="small"
+                            value={fontWeight === '700' ? '700' : '400'}
+                            style={{ width: 96 }}
+                            optionList={[
+                              { label: '加粗', value: '700' },
+                              { label: '常规', value: '400' },
+                            ]}
+                            onChange={(v) => {
+                              if (v === '400' || v === '700') {
+                                updateTextFontWeight(v, p)
                               }
                             }}
                           />
