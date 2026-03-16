@@ -77,7 +77,12 @@ export async function generatePosterForRecord(
   recordId: string,
   getter: FieldValueGetter,
   multiplier = 2,
+  shouldCancel?: () => boolean,
 ): Promise<Blob | null> {
+  if (shouldCancel?.()) {
+    return null
+  }
+
   const offscreen = document.createElement('canvas')
   const parsed = JSON.parse(canvasJson)
   const width = parsed.width ?? 800
@@ -96,11 +101,20 @@ export async function generatePosterForRecord(
   const imageReplacements: { obj: PlaceholderObject; idx: number; urls: string[] }[] = []
 
   for (const obj of objects) {
+    if (shouldCancel?.()) {
+      tempCanvas.dispose()
+      return null
+    }
+
     if (!obj.binding) continue
     const { fieldId } = obj.binding
 
     if (obj.placeholderType === 'text') {
       const text = await getter.getCellText(fieldId, recordId)
+      if (shouldCancel?.()) {
+        tempCanvas.dispose()
+        return null
+      }
       const textObj = obj as unknown as TextboxWithBounds
       fitTextboxText(textObj, {
         text: text || ' ',
@@ -110,6 +124,10 @@ export async function generatePosterForRecord(
 
     if (obj.placeholderType === 'image') {
       const urls = await getter.getAttachmentUrls(fieldId, recordId)
+      if (shouldCancel?.()) {
+        tempCanvas.dispose()
+        return null
+      }
       if (urls.length > 0) {
         const idx = tempCanvas.getObjects().indexOf(obj)
         imageReplacements.push({ obj, idx, urls })
@@ -119,9 +137,18 @@ export async function generatePosterForRecord(
 
   // apply image replacements in reverse order to preserve indices
   for (let i = imageReplacements.length - 1; i >= 0; i--) {
+    if (shouldCancel?.()) {
+      tempCanvas.dispose()
+      return null
+    }
+
     const { obj, idx, urls } = imageReplacements[i]
     try {
       const img = await fabric.FabricImage.fromURL(urls[0], { crossOrigin: 'anonymous' })
+      if (shouldCancel?.()) {
+        tempCanvas.dispose()
+        return null
+      }
       const targetWidth = Math.max(1, obj.getScaledWidth())
       const targetHeight = Math.max(1, obj.getScaledHeight())
       const center = obj.getCenterPoint()

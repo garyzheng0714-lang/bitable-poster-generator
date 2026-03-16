@@ -3,6 +3,7 @@ import {
   bitable,
   FieldType,
   type IFieldMeta,
+  type IOpenAttachment,
   type ITable,
 } from '@lark-base-open/js-sdk'
 import type { FieldMeta } from '../types'
@@ -29,6 +30,21 @@ const TEXT_COMPATIBLE_TYPES = new Set([
 ])
 
 const IMAGE_COMPATIBLE_TYPES = new Set([FieldType.Attachment])
+
+function isOpenAttachment(value: unknown): value is IOpenAttachment {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const attachment = value as Partial<IOpenAttachment>
+  return (
+    typeof attachment.name === 'string'
+    && typeof attachment.size === 'number'
+    && typeof attachment.type === 'string'
+    && typeof attachment.token === 'string'
+    && typeof attachment.timeStamp === 'number'
+  )
+}
 
 export function useBitable() {
   const [table, setTable] = useState<ITable | null>(null)
@@ -182,25 +198,42 @@ export function useBitable() {
   )
 
   const writeAttachment = useCallback(
-    async (fieldId: string, recordId: string, blob: Blob, filename: string): Promise<boolean> => {
+    async (
+      fieldId: string,
+      recordId: string,
+      blob: Blob,
+      filename: string,
+      mode: 'append' | 'overwrite' = 'append',
+    ): Promise<boolean> => {
       if (!table) return false
       try {
-        const file = new File([blob], filename, { type: blob.type || 'image/png' })
-        const field = await table.getFieldById(fieldId)
-
-        // Try appending: read existing attachments, combine with new file
-        try {
-          const currentVal = await field.getValue(recordId)
-          if (Array.isArray(currentVal) && currentVal.length > 0) {
-            // Pass existing IOpenAttachment[] + new File together
-            await (field as any).setValue(recordId, [...currentVal, file])
-            return true
-          }
-        } catch {
-          // getValue failed or empty, write new file only
+        const field = (await table.getFieldById(fieldId)) as unknown as {
+          getValue: (targetRecordId: string) => Promise<unknown>
+          setValue: (targetRecordId: string, value: IOpenAttachment[]) => Promise<boolean>
         }
 
-        await (field as any).setValue(recordId, file)
+        let existingAttachments: IOpenAttachment[] = []
+        if (mode === 'append') {
+          const currentVal = await field.getValue(recordId)
+          existingAttachments = Array.isArray(currentVal)
+            ? currentVal.filter(isOpenAttachment)
+            : []
+        }
+
+        const file = new File([blob], filename, { type: blob.type || 'image/png' })
+        const token = await bitable.base.uploadFile(file)
+        const nextAttachments: IOpenAttachment[] = [
+          ...existingAttachments,
+          {
+            name: file.name,
+            size: file.size,
+            type: file.type || 'image/png',
+            token,
+            timeStamp: Date.now(),
+          },
+        ]
+
+        await field.setValue(recordId, nextAttachments)
         return true
       } catch (err) {
         console.error('writeAttachment failed', fieldId, recordId, err)

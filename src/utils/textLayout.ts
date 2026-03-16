@@ -26,6 +26,21 @@ function fitsSingleLineWidth(textObj: TextboxWithBounds, width: number): boolean
   return lineWidth <= width + 0.5
 }
 
+function fitsBox(textObj: TextboxWithBounds, width: number, height: number): boolean {
+  const lines = textObj.textLines?.length ?? 1
+  for (let i = 0; i < lines; i += 1) {
+    const lineWidth = typeof textObj.getLineWidth === 'function'
+      ? textObj.getLineWidth(i)
+      : (textObj.width ?? 0)
+    if (Number.isFinite(lineWidth) && lineWidth > width + 0.5) {
+      return false
+    }
+  }
+
+  const textHeight = textObj.height ?? 0
+  return textHeight <= height + 0.5
+}
+
 export function getTextboxBounds(textObj: TextboxWithBounds): { width: number; height: number } {
   const width = Math.max(MIN_TEXTBOX_WIDTH, Math.round(textObj.width ?? MIN_TEXTBOX_WIDTH))
   const fallbackHeight = Math.max(
@@ -71,49 +86,40 @@ export function fitTextboxText(
     scaleY: 1,
   })
 
-  let fitted = false
+  let fittedSingleLine = false
   for (let size = maxFontSize; size >= minFontSize; size -= 1) {
     textObj.set({ fontSize: size })
     textObj.initDimensions()
     if (fitsSingleLineWidth(textObj, width)) {
-      fitted = true
+      fittedSingleLine = true
       break
     }
   }
 
-  let nextText = String(textObj.text ?? ' ')
-  if (!fitted) {
-    textObj.set({ fontSize: minFontSize })
-    textObj.initDimensions()
+  let fittedMultiLine = false
+  if (!fittedSingleLine) {
+    textObj.set({
+      text: sourceText,
+      splitByGrapheme: true,
+    })
 
-    if (!fitsSingleLineWidth(textObj, width)) {
-      const graphemes = Array.from(sourceText)
-      let low = 0
-      let high = graphemes.length
-      let bestText = ' '
-
-      while (low <= high) {
-        const mid = Math.floor((low + high) / 2)
-        const base = graphemes.slice(0, mid).join('').trimEnd()
-        const candidate = mid >= graphemes.length
-          ? sourceText
-          : `${base || graphemes[0] || ''}…`
-
-        textObj.set({ text: candidate || ' ' })
-        textObj.initDimensions()
-
-        if (fitsSingleLineWidth(textObj, width)) {
-          bestText = candidate || ' '
-          low = mid + 1
-        } else {
-          high = mid - 1
-        }
-      }
-
-      nextText = bestText
-      textObj.set({ text: nextText })
+    for (let size = maxFontSize; size >= minFontSize; size -= 1) {
+      textObj.set({ fontSize: size })
       textObj.initDimensions()
+      if (fitsBox(textObj, width, height)) {
+        fittedMultiLine = true
+        break
+      }
     }
+  }
+
+  if (!fittedSingleLine && !fittedMultiLine) {
+    textObj.set({
+      fontSize: minFontSize,
+      text: sourceText,
+      splitByGrapheme: true,
+    })
+    textObj.initDimensions()
   }
 
   if (center) {
@@ -126,6 +132,6 @@ export function fitTextboxText(
     fontSize: Math.round(textObj.fontSize ?? maxFontSize),
     width,
     height,
-    truncated: nextText !== sourceText,
+    truncated: false,
   }
 }

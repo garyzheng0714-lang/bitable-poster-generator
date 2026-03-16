@@ -30,6 +30,7 @@ data/
 server/node_modules
 .codepilot-uploads/
 test-screenshots/
+screenshots/
 test-template*.png
 *.png
 !src/**/*.png

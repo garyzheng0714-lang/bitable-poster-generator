@@ -108,12 +108,20 @@ export function GeneratePanel({ canvasHook, bitableHook }: GeneratePanelProps) {
     cancelledRef.current = false
     setProgress({ current: 0, total: recordIds.length, status: 'generating', message: '' })
 
+    const exitWhenCancelled = () => {
+      if (!cancelledRef.current) {
+        return false
+      }
+
+      setProgress((prev) => ({ ...prev, status: 'idle', message: '' }))
+      Toast.info({ content: '已取消生成' })
+      return true
+    }
+
     let successCount = 0
 
     for (const recordId of recordIds) {
-      if (cancelledRef.current) {
-        setProgress((prev) => ({ ...prev, status: 'idle', message: '' }))
-        Toast.info({ content: '已取消生成' })
+      if (exitWhenCancelled()) {
         return
       }
 
@@ -121,7 +129,11 @@ export function GeneratePanel({ canvasHook, bitableHook }: GeneratePanelProps) {
         const blob = await generatePosterForRecord(canvasJson, recordId, {
           getCellText: bitableHook.getCellText,
           getAttachmentUrls: bitableHook.getAttachmentUrls,
-        }, 2)
+        }, 2, () => cancelledRef.current)
+
+        if (exitWhenCancelled()) {
+          return
+        }
 
         if (blob) {
           if (outputMode === 'attachment' && targetFieldId) {
@@ -131,6 +143,11 @@ export function GeneratePanel({ canvasHook, bitableHook }: GeneratePanelProps) {
               blob,
               `poster-${recordId}.png`,
             )
+
+            if (exitWhenCancelled()) {
+              return
+            }
+
             if (ok) successCount++
           } else {
             downloadBlob(blob, `poster-${recordId}.png`)

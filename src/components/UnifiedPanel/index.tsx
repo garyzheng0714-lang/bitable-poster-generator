@@ -6,6 +6,8 @@ import {
   InputNumber,
   Toast,
   Progress,
+  RadioGroup,
+  Radio,
 } from '@douyinfe/semi-ui'
 import { IconPlay, IconDownload, IconClose, IconPlus } from '@douyinfe/semi-icons'
 import { bitable } from '@lark-base-open/js-sdk'
@@ -68,6 +70,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
   } = bitableHook
 
   const [targetFieldId, setTargetFieldId] = useState<string | undefined>()
+  const [writeMode, setWriteMode] = useState<'append' | 'overwrite'>('append')
   const [generating, setGenerating] = useState(false)
   const [generationScope, setGenerationScope] = useState<'selected' | 'all' | null>(null)
   const [progress, setProgress] = useState({ current: 0, total: 0 })
@@ -204,12 +207,20 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
     setGenerationScope(scope)
     setProgress({ current: 0, total: recordIds.length })
 
+    const exitWhenCancelled = () => {
+      if (!cancelledRef.current) {
+        return false
+      }
+
+      setGenerating(false)
+      setGenerationScope(null)
+      Toast.info({ content: '已取消生成' })
+      return true
+    }
+
     let successCount = 0
     for (const recordId of recordIds) {
-      if (cancelledRef.current) {
-        setGenerating(false)
-        setGenerationScope(null)
-        Toast.info({ content: '已取消生成' })
+      if (exitWhenCancelled()) {
         return
       }
 
@@ -217,7 +228,11 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
         const blob = await generatePosterForRecord(canvasJson, recordId, {
           getCellText,
           getAttachmentUrls,
-        }, 2)
+        }, 2, () => cancelledRef.current)
+
+        if (exitWhenCancelled()) {
+          return
+        }
 
         if (blob) {
           const ok = await writeAttachment(
@@ -225,7 +240,13 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
             recordId,
             blob,
             `poster-${recordId}.png`,
+            writeMode,
           )
+
+          if (exitWhenCancelled()) {
+            return
+          }
+
           if (ok) successCount++
         }
         setProgress((prev) => ({ ...prev, current: prev.current + 1 }))
@@ -611,6 +632,19 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                 }}
                 style={{ flexShrink: 0 }}
               />
+            </div>
+
+            <div className="generate-mode-row">
+              <span className="generate-mode-label">写入方式</span>
+              <RadioGroup
+                value={writeMode}
+                onChange={(e) => setWriteMode(e.target.value as 'append' | 'overwrite')}
+                direction="horizontal"
+                type="button"
+              >
+                <Radio value="append">追加</Radio>
+                <Radio value="overwrite">覆盖</Radio>
+              </RadioGroup>
             </div>
 
             <div className="generate-bar">
