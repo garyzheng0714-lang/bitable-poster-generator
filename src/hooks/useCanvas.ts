@@ -896,6 +896,8 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     const preview = previewRef.current
     if (!c || !preview) return
 
+    const prevRender = c.renderOnAddRemove
+    c.renderOnAddRemove = false
     skipSaveRef.current = true
 
     // restore original text and fontSize
@@ -919,6 +921,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
 
     previewRef.current = null
     skipSaveRef.current = false
+    c.renderOnAddRemove = prevRender
     if (!options?.skipRender) c.renderAll()
   }, [])
 
@@ -938,6 +941,8 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     // clear any existing preview first
     clearPreview({ skipRender: true })
 
+    const prevRender = c.renderOnAddRemove
+    c.renderOnAddRemove = false
     skipSaveRef.current = true
 
     const textOriginals = new Map<string, string>()
@@ -960,6 +965,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
       for (const overlay of imageOverlays) {
         c.remove(overlay)
       }
+      c.renderOnAddRemove = prevRender
       skipSaveRef.current = false
     }
 
@@ -1071,6 +1077,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
 
     previewRef.current = { textOriginals, fontSizeOriginals, imageOverlays, overlayMap }
     skipSaveRef.current = false
+    c.renderOnAddRemove = prevRender
     c.renderAll()
   }, [clearPreview])
 
