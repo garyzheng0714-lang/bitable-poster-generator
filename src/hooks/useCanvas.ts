@@ -123,11 +123,7 @@ function repositionOverlay(
   if (fitMode === 'contain') {
     const sx = targetWidth / imgNaturalW
     const sy = targetHeight / imgNaturalH
-    let scale = Math.min(sx, sy)
-    if (placeholder.placeholderShape === 'circle') {
-      const d = Math.min(targetWidth, targetHeight)
-      scale = Math.min(scale, d / Math.sqrt(imgNaturalW * imgNaturalW + imgNaturalH * imgNaturalH))
-    }
+    const scale = Math.min(sx, sy)
     img.set({
       left: left + (targetWidth - imgNaturalW * scale) / 2,
       top: top + (targetHeight - imgNaturalH * scale) / 2,
@@ -681,7 +677,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     circle.placeholderType = 'image'
     circle.placeholderLabel = 'Logo'
     circle.placeholderShape = 'circle'
-    circle.placeholderFit = 'contain'
+    circle.placeholderFit = 'cover'
     circle.binding = null
 
     c.add(circle)
@@ -1015,11 +1011,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
       if (fitMode === 'contain') {
         const sx = targetWidth / imgW
         const sy = targetHeight / imgH
-        let scale = Math.min(sx, sy)
-        if (obj.placeholderShape === 'circle') {
-          const d = Math.min(targetWidth, targetHeight)
-          scale = Math.min(scale, d / Math.sqrt(imgW * imgW + imgH * imgH))
-        }
+        const scale = Math.min(sx, sy)
         img.set({
           left: left + (targetWidth - imgW * scale) / 2,
           top: top + (targetHeight - imgH * scale) / 2,

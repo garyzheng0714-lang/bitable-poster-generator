@@ -46,8 +46,6 @@ function fitImageCover(
 
 /**
  * Fit image into a box using "contain" mode (no crop).
- * When safeInCircle is true, image is additionally scaled to keep all corners
- * inside the circle clip area.
  */
 function fitImageContain(
   img: fabric.FabricImage,
@@ -56,26 +54,14 @@ function fitImageContain(
   left: number,
   top: number,
   angle?: number,
-  safeInCircle = false,
 ) {
   const imgW = img.width!
   const imgH = img.height!
-  const scaleX = targetWidth / imgW
-  const scaleY = targetHeight / imgH
-  let scale = Math.min(scaleX, scaleY)
-
-  if (safeInCircle) {
-    const diameter = Math.min(targetWidth, targetHeight)
-    const maxByCircle = diameter / Math.sqrt(imgW * imgW + imgH * imgH)
-    scale = Math.min(scale, maxByCircle)
-  }
-
-  const scaledW = imgW * scale
-  const scaledH = imgH * scale
+  const scale = Math.min(targetWidth / imgW, targetHeight / imgH)
 
   img.set({
-    left: left + (targetWidth - scaledW) / 2,
-    top: top + (targetHeight - scaledH) / 2,
+    left: left + (targetWidth - imgW * scale) / 2,
+    top: top + (targetHeight - imgH * scale) / 2,
     angle: angle ?? 0,
     scaleX: scale,
     scaleY: scale,
@@ -151,7 +137,6 @@ export async function generatePosterForRecord(
           left,
           top,
           obj.angle,
-          obj.placeholderShape === 'circle',
         )
       } else {
         fitImageCover(img, targetWidth, targetHeight, left, top, obj.angle)
