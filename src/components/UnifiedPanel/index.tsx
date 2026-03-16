@@ -14,6 +14,20 @@ import type { PlaceholderObject } from '../../hooks/useCanvas'
 import type { useBitable } from '../../hooks/useBitable'
 import { generatePosterForRecord, downloadBlob, dataUrlToBlob } from '../../services/posterGenerator'
 
+const FONT_OPTIONS = [
+  { label: '系统默认', value: 'PingFang SC, Microsoft YaHei, sans-serif' },
+  { label: '阿里巴巴普惠', value: 'Alibaba PuHuiTi' },
+  { label: 'Sk-Modernist', value: 'Sk-Modernist' },
+]
+
+const FONT_WEIGHT_OPTIONS = [
+  { label: 'Light', value: '300' },
+  { label: '常规', value: '400' },
+  { label: 'Medium', value: '500' },
+  { label: '加粗', value: '700' },
+  { label: 'Heavy', value: '900' },
+]
+
 interface Props {
   canvasHook: ReturnType<typeof useCanvas>
   bitableHook: ReturnType<typeof useBitable>
@@ -432,13 +446,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                             size="small"
                             value={fontWeight}
                             style={{ width: 96 }}
-                            optionList={[
-                              { label: 'Light', value: '300' },
-                              { label: '常规', value: '400' },
-                              { label: 'Medium', value: '500' },
-                              { label: '加粗', value: '700' },
-                              { label: 'Heavy', value: '900' },
-                            ]}
+                            optionList={FONT_WEIGHT_OPTIONS}
                             onChange={(v) => {
                               if (typeof v === 'string') {
                                 updateTextFontWeight(v, p)
@@ -462,11 +470,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                             size="small"
                             value={fontFamily}
                             style={{ width: 140 }}
-                            optionList={[
-                              { label: '系统默认', value: 'PingFang SC, Microsoft YaHei, sans-serif' },
-                              { label: '阿里巴巴普惠', value: 'Alibaba PuHuiTi' },
-                              { label: 'Sk-Modernist', value: 'Sk-Modernist' },
-                            ]}
+                            optionList={FONT_OPTIONS}
                             onChange={(v) => {
                               if (typeof v === 'string') updateTextFontFamily(v, p)
                             }}

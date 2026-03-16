@@ -198,9 +198,16 @@ export function useBitable() {
         }
 
         const file = new File([blob], filename, { type: blob.type || 'image/png' })
-        // SDK accepts mixed [IOpenAttachment, File] at runtime
-        const combined = [...existing, file]
-        await (field as any).setValue(recordId, combined)
+
+        if (existing.length > 0) {
+          try {
+            await (field as any).setValue(recordId, [...existing, file])
+            return true
+          } catch {
+            // Mixed array not supported in this SDK version, fall back to overwrite
+          }
+        }
+        await (field as any).setValue(recordId, file)
         return true
       } catch (err) {
         console.error('writeAttachment failed', fieldId, recordId, err)

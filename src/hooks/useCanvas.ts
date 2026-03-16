@@ -995,8 +995,10 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     const imageOverlays: fabric.FabricObject[] = []
     const overlayMap = new Map<string, { img: fabric.FabricImage; imgNaturalW: number; imgNaturalH: number }>()
 
-    // Apply text
+    // Apply text (skip objects removed during async loading)
+    const currentObjects = new Set(c.getObjects())
     for (const { obj, text } of textData) {
+      if (!currentObjects.has(obj)) continue
       const textObj = obj as unknown as TextboxWithBounds
       textOriginals.set(obj.placeholderId!, textObj.text)
       fontSizeOriginals.set(
@@ -1009,8 +1011,9 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
       })
     }
 
-    // Apply images
+    // Apply images (skip objects removed during async loading)
     for (const { obj, img } of imageData) {
+      if (!currentObjects.has(obj)) continue
       const targetWidth = Math.max(1, obj.getScaledWidth())
       const targetHeight = Math.max(1, obj.getScaledHeight())
       const center = obj.getCenterPoint()
