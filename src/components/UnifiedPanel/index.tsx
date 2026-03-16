@@ -34,6 +34,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
     updateObjectTransform,
     updateImageFit,
     updateTextColor,
+    updateTextFontFamily,
     getCanvasJson,
     exportAsDataUrl,
     previewRecord,
@@ -253,6 +254,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
             const textAlign = isText
               ? ((textObj.textAlign as 'left' | 'center' | 'right' | undefined) ?? 'center')
               : 'center'
+            const fontFamily = isText ? String(textObj.fontFamily ?? '') : ''
 
             const posX = Math.round(p.left ?? 0)
             const posY = Math.round(p.top ?? 0)
@@ -449,6 +451,22 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                             onChange={(e) => updateTextColor(e.target.value, p)}
                             onClick={(e) => e.stopPropagation()}
                             className="color-picker"
+                          />
+                        </div>
+                        <div className="prop-field">
+                          <span className="prop-label">字体</span>
+                          <Select
+                            size="small"
+                            value={fontFamily}
+                            style={{ width: 140 }}
+                            optionList={[
+                              { label: '系统默认', value: 'PingFang SC, Microsoft YaHei, sans-serif' },
+                              { label: '阿里巴巴普惠', value: 'Alibaba PuHuiTi' },
+                              { label: 'Sk-Modernist', value: 'Sk-Modernist' },
+                            ]}
+                            onChange={(v) => {
+                              if (typeof v === 'string') updateTextFontFamily(v, p)
+                            }}
                           />
                         </div>
                       </>

@@ -886,6 +886,19 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     saveHistory(c)
   }, [activeObject, saveHistory, syncActiveObject])
 
+  // update text font family
+  const updateTextFontFamily = useCallback((family: string, target?: PlaceholderObject) => {
+    const c = canvasRef.current
+    const obj = target ?? activeObject
+    if (!c || !obj || obj.placeholderType !== 'text') return
+    const textObj = obj as unknown as TextboxWithBounds
+    textObj.set({ fontFamily: family })
+    fitTextboxText(textObj)
+    c.renderAll()
+    syncActiveObject(obj)
+    saveHistory(c)
+  }, [activeObject, saveHistory, syncActiveObject])
+
   // clear live preview (restore original text, remove image overlays)
   const clearPreview = useCallback((options?: { skipRender?: boolean }) => {
     const c = canvasRef.current
@@ -1177,6 +1190,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     updateObjectTransform,
     updateImageFit,
     updateTextColor,
+    updateTextFontFamily,
     deleteActive,
     refreshPlaceholders,
     exportAsDataUrl,
