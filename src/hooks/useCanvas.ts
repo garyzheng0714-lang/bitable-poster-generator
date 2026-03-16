@@ -120,10 +120,28 @@ function repositionOverlay(
   const top = center.y - targetHeight / 2
   const fitMode = placeholder.placeholderFit ?? 'contain'
 
-  if (fitMode === 'contain') {
-    const sx = targetWidth / imgNaturalW
-    const sy = targetHeight / imgNaturalH
-    const scale = Math.min(sx, sy)
+  const isCircle = placeholder.placeholderShape === 'circle'
+
+  if (isCircle) {
+    // Circle: scale to cover, center with originX/Y, clip with clipPath (no crop)
+    const scale = Math.max(targetWidth / imgNaturalW, targetHeight / imgNaturalH)
+    const r = Math.min(targetWidth, targetHeight) / 2
+    img.set({
+      left: center.x,
+      top: center.y,
+      originX: 'center',
+      originY: 'center',
+      angle: placeholder.angle ?? 0,
+      scaleX: scale,
+      scaleY: scale,
+      cropX: 0,
+      cropY: 0,
+      width: imgNaturalW,
+      height: imgNaturalH,
+      clipPath: new fabric.Circle({ radius: r, originX: 'center', originY: 'center' }),
+    })
+  } else if (fitMode === 'contain') {
+    const scale = Math.min(targetWidth / imgNaturalW, targetHeight / imgNaturalH)
     img.set({
       left: left + (targetWidth - imgNaturalW * scale) / 2,
       top: top + (targetHeight - imgNaturalH * scale) / 2,
@@ -136,9 +154,7 @@ function repositionOverlay(
       height: imgNaturalH,
     })
   } else {
-    const sx = targetWidth / imgNaturalW
-    const sy = targetHeight / imgNaturalH
-    const scale = Math.max(sx, sy)
+    const scale = Math.max(targetWidth / imgNaturalW, targetHeight / imgNaturalH)
     const cropX = (imgNaturalW * scale - targetWidth) / 2 / scale
     const cropY = (imgNaturalH * scale - targetHeight) / 2 / scale
     img.set({
@@ -151,16 +167,6 @@ function repositionOverlay(
       cropY,
       width: imgNaturalW - cropX * 2,
       height: imgNaturalH - cropY * 2,
-    })
-  }
-
-  if (placeholder.placeholderShape === 'circle') {
-    img.set({
-      clipPath: new fabric.Circle({
-        radius: Math.min(targetWidth, targetHeight) / 2,
-        originX: 'center',
-        originY: 'center',
-      }),
     })
   }
 
@@ -1017,51 +1023,54 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
       const targetWidth = Math.max(1, obj.getScaledWidth())
       const targetHeight = Math.max(1, obj.getScaledHeight())
       const center = obj.getCenterPoint()
-      const left = center.x - targetWidth / 2
-      const top = center.y - targetHeight / 2
-      const fitMode = obj.placeholderFit ?? 'contain'
+      const isCircle = obj.placeholderShape === 'circle'
 
       const imgW = img.width!
       const imgH = img.height!
 
-      if (fitMode === 'contain') {
-        const sx = targetWidth / imgW
-        const sy = targetHeight / imgH
-        const scale = Math.min(sx, sy)
+      if (isCircle) {
+        const scale = Math.max(targetWidth / imgW, targetHeight / imgH)
+        const r = Math.min(targetWidth, targetHeight) / 2
         img.set({
-          left: left + (targetWidth - imgW * scale) / 2,
-          top: top + (targetHeight - imgH * scale) / 2,
+          left: center.x,
+          top: center.y,
+          originX: 'center',
+          originY: 'center',
           angle: obj.angle ?? 0,
           scaleX: scale,
           scaleY: scale,
+          clipPath: new fabric.Circle({ radius: r, originX: 'center', originY: 'center' }),
         })
       } else {
-        const sx = targetWidth / imgW
-        const sy = targetHeight / imgH
-        const scale = Math.max(sx, sy)
-        const cropX = (imgW * scale - targetWidth) / 2 / scale
-        const cropY = (imgH * scale - targetHeight) / 2 / scale
-        img.set({
-          left,
-          top,
-          angle: obj.angle ?? 0,
-          scaleX: scale,
-          scaleY: scale,
-          cropX,
-          cropY,
-          width: imgW - cropX * 2,
-          height: imgH - cropY * 2,
-        })
-      }
+        const left = center.x - targetWidth / 2
+        const top = center.y - targetHeight / 2
+        const fitMode = obj.placeholderFit ?? 'contain'
 
-      if (obj.placeholderShape === 'circle') {
-        img.set({
-          clipPath: new fabric.Circle({
-            radius: Math.min(targetWidth, targetHeight) / 2,
-            originX: 'center',
-            originY: 'center',
-          }),
-        })
+        if (fitMode === 'contain') {
+          const scale = Math.min(targetWidth / imgW, targetHeight / imgH)
+          img.set({
+            left: left + (targetWidth - imgW * scale) / 2,
+            top: top + (targetHeight - imgH * scale) / 2,
+            angle: obj.angle ?? 0,
+            scaleX: scale,
+            scaleY: scale,
+          })
+        } else {
+          const scale = Math.max(targetWidth / imgW, targetHeight / imgH)
+          const cropX = (imgW * scale - targetWidth) / 2 / scale
+          const cropY = (imgH * scale - targetHeight) / 2 / scale
+          img.set({
+            left,
+            top,
+            angle: obj.angle ?? 0,
+            scaleX: scale,
+            scaleY: scale,
+            cropX,
+            cropY,
+            width: imgW - cropX * 2,
+            height: imgH - cropY * 2,
+          })
+        }
       }
 
       ;(img as any)._isPreview = true

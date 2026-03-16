@@ -128,28 +128,29 @@ export async function generatePosterForRecord(
       const left = center.x - targetWidth / 2
       const top = center.y - targetHeight / 2
 
-      const fitMode = obj.placeholderFit ?? 'cover'
-      if (fitMode === 'contain') {
-        fitImageContain(
-          img,
-          targetWidth,
-          targetHeight,
-          left,
-          top,
-          obj.angle,
-        )
-      } else {
-        fitImageCover(img, targetWidth, targetHeight, left, top, obj.angle)
-      }
+      const isCircle = obj.placeholderShape === 'circle'
 
-      if (obj.placeholderShape === 'circle') {
+      if (isCircle) {
+        // Circle: scale to cover, center with originX/Y, clip with clipPath (no crop)
+        const scale = Math.max(targetWidth / img.width!, targetHeight / img.height!)
+        const r = Math.min(targetWidth, targetHeight) / 2
         img.set({
-          clipPath: new fabric.Circle({
-            radius: Math.min(targetWidth, targetHeight) / 2,
-            originX: 'center',
-            originY: 'center',
-          }),
+          left: center.x,
+          top: center.y,
+          originX: 'center',
+          originY: 'center',
+          angle: obj.angle ?? 0,
+          scaleX: scale,
+          scaleY: scale,
+          clipPath: new fabric.Circle({ radius: r, originX: 'center', originY: 'center' }),
         })
+      } else {
+        const fitMode = obj.placeholderFit ?? 'cover'
+        if (fitMode === 'contain') {
+          fitImageContain(img, targetWidth, targetHeight, left, top, obj.angle)
+        } else {
+          fitImageCover(img, targetWidth, targetHeight, left, top, obj.angle)
+        }
       }
 
       tempCanvas.remove(obj)
