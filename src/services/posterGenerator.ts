@@ -142,7 +142,7 @@ export async function generatePosterForRecord(
           angle: obj.angle ?? 0,
           scaleX: scale,
           scaleY: scale,
-          clipPath: new fabric.Circle({ radius: r, originX: 'center', originY: 'center' }),
+          clipPath: new fabric.Circle({ radius: r / scale, originX: 'center', originY: 'center' }),
         })
       } else {
         const fitMode = obj.placeholderFit ?? 'cover'

@@ -138,7 +138,7 @@ function repositionOverlay(
       cropY: 0,
       width: imgNaturalW,
       height: imgNaturalH,
-      clipPath: new fabric.Circle({ radius: r, originX: 'center', originY: 'center' }),
+      clipPath: new fabric.Circle({ radius: r / scale, originX: 'center', originY: 'center' }),
     })
   } else if (fitMode === 'contain') {
     const scale = Math.min(targetWidth / imgNaturalW, targetHeight / imgNaturalH)
@@ -1039,7 +1039,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
           angle: obj.angle ?? 0,
           scaleX: scale,
           scaleY: scale,
-          clipPath: new fabric.Circle({ radius: r, originX: 'center', originY: 'center' }),
+          clipPath: new fabric.Circle({ radius: r / scale, originX: 'center', originY: 'center' }),
         })
       } else {
         const left = center.x - targetWidth / 2
