@@ -926,6 +926,8 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
   }, [])
 
   // live preview: render a record's data into placeholders on canvas
+  // Phase 1: fetch all data (no canvas mutations)
+  // Phase 2: atomically swap old preview with new (clear + apply + render once)
   const previewRecord = useCallback(async (
     recordId: string,
     getter: {
@@ -937,142 +939,130 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     if (!c) return
 
     const gen = ++previewGenRef.current
+    const stale = () => previewGenRef.current !== gen
 
-    // clear any existing preview first
-    clearPreview({ skipRender: true })
+    // --- Phase 1: fetch all data without touching the canvas ---
+    const objects = c.getObjects() as PlaceholderObject[]
+    const textData: { obj: PlaceholderObject; text: string }[] = []
+    const imageData: { obj: PlaceholderObject; img: fabric.FabricImage }[] = []
 
+    for (const obj of objects) {
+      if (stale()) return
+      if (!obj.binding || !obj.placeholderId) continue
+      const { fieldId } = obj.binding
+
+      if (obj.placeholderType === 'text') {
+        try {
+          const text = await getter.getCellText(fieldId, recordId)
+          if (stale()) return
+          textData.push({ obj, text })
+        } catch { /* ignore */ }
+      }
+
+      if (obj.placeholderType === 'image') {
+        try {
+          const urls = await getter.getAttachmentUrls(fieldId, recordId)
+          if (stale()) return
+          if (urls.length > 0) {
+            const img = await fabric.FabricImage.fromURL(urls[0], { crossOrigin: 'anonymous' })
+            if (stale()) return
+            imageData.push({ obj, img })
+          }
+        } catch { /* ignore */ }
+      }
+    }
+
+    if (stale()) return
+
+    // --- Phase 2: atomic canvas swap (synchronous, no awaits) ---
     const prevRender = c.renderOnAddRemove
     c.renderOnAddRemove = false
     skipSaveRef.current = true
+
+    clearPreview({ skipRender: true })
 
     const textOriginals = new Map<string, string>()
     const fontSizeOriginals = new Map<string, number>()
     const imageOverlays: fabric.FabricObject[] = []
     const overlayMap = new Map<string, { img: fabric.FabricImage; imgNaturalW: number; imgNaturalH: number }>()
 
-    const objects = c.getObjects() as PlaceholderObject[]
-
-    const rollback = () => {
-      for (const [phId, originalText] of textOriginals) {
-        const phObj = objects.find(o => o.placeholderId === phId) as unknown as TextboxWithBounds | undefined
-        if (phObj) {
-          phObj.set('text', originalText)
-          fitTextboxText(phObj, {
-            maxFontSize: fontSizeOriginals.get(phId) ?? Math.round(phObj.fontSize ?? 36),
-          })
-        }
-      }
-      for (const overlay of imageOverlays) {
-        c.remove(overlay)
-      }
-      c.renderOnAddRemove = prevRender
-      skipSaveRef.current = false
+    // Apply text
+    for (const { obj, text } of textData) {
+      const textObj = obj as unknown as TextboxWithBounds
+      textOriginals.set(obj.placeholderId!, textObj.text)
+      fontSizeOriginals.set(
+        obj.placeholderId!,
+        textObj.placeholderFontSizeMax ?? textObj.fontSize ?? 36,
+      )
+      fitTextboxText(textObj, {
+        text: text || ' ',
+        maxFontSize: fontSizeOriginals.get(obj.placeholderId!) ?? 36,
+      })
     }
 
-    for (const obj of objects) {
-      if (previewGenRef.current !== gen) { rollback(); return }
+    // Apply images
+    for (const { obj, img } of imageData) {
+      const targetWidth = Math.max(1, obj.getScaledWidth())
+      const targetHeight = Math.max(1, obj.getScaledHeight())
+      const center = obj.getCenterPoint()
+      const left = center.x - targetWidth / 2
+      const top = center.y - targetHeight / 2
+      const fitMode = obj.placeholderFit ?? 'contain'
 
-      if (!obj.binding || !obj.placeholderId) continue
-      const { fieldId } = obj.binding
+      const imgW = img.width!
+      const imgH = img.height!
 
-      if (obj.placeholderType === 'text') {
-        const textObj = obj as unknown as TextboxWithBounds
-        textOriginals.set(obj.placeholderId, textObj.text)
-        fontSizeOriginals.set(
-          obj.placeholderId,
-          textObj.placeholderFontSizeMax ?? textObj.fontSize ?? 36,
-        )
-        try {
-          const text = await getter.getCellText(fieldId, recordId)
-          if (previewGenRef.current !== gen) { rollback(); return }
-          fitTextboxText(textObj, {
-            text: text || ' ',
-            maxFontSize: fontSizeOriginals.get(obj.placeholderId) ?? 36,
-          })
-        } catch {
-          // ignore
+      if (fitMode === 'contain') {
+        const sx = targetWidth / imgW
+        const sy = targetHeight / imgH
+        let scale = Math.min(sx, sy)
+        if (obj.placeholderShape === 'circle') {
+          const d = Math.min(targetWidth, targetHeight)
+          scale = Math.min(scale, d / Math.sqrt(imgW * imgW + imgH * imgH))
         }
+        img.set({
+          left: left + (targetWidth - imgW * scale) / 2,
+          top: top + (targetHeight - imgH * scale) / 2,
+          angle: obj.angle ?? 0,
+          scaleX: scale,
+          scaleY: scale,
+        })
+      } else {
+        const sx = targetWidth / imgW
+        const sy = targetHeight / imgH
+        const scale = Math.max(sx, sy)
+        const cropX = (imgW * scale - targetWidth) / 2 / scale
+        const cropY = (imgH * scale - targetHeight) / 2 / scale
+        img.set({
+          left,
+          top,
+          angle: obj.angle ?? 0,
+          scaleX: scale,
+          scaleY: scale,
+          cropX,
+          cropY,
+          width: imgW - cropX * 2,
+          height: imgH - cropY * 2,
+        })
       }
 
-      if (obj.placeholderType === 'image') {
-        try {
-          const urls = await getter.getAttachmentUrls(fieldId, recordId)
-          if (previewGenRef.current !== gen) { rollback(); return }
-          if (urls.length > 0) {
-            const img = await fabric.FabricImage.fromURL(urls[0], { crossOrigin: 'anonymous' })
-            if (previewGenRef.current !== gen) { rollback(); return }
-
-            const targetWidth = Math.max(1, obj.getScaledWidth())
-            const targetHeight = Math.max(1, obj.getScaledHeight())
-            const center = obj.getCenterPoint()
-            const left = center.x - targetWidth / 2
-            const top = center.y - targetHeight / 2
-            const fitMode = obj.placeholderFit ?? 'contain'
-
-            const imgW = img.width!
-            const imgH = img.height!
-
-            if (fitMode === 'contain') {
-              const sx = targetWidth / imgW
-              const sy = targetHeight / imgH
-              let scale = Math.min(sx, sy)
-              if (obj.placeholderShape === 'circle') {
-                const d = Math.min(targetWidth, targetHeight)
-                scale = Math.min(scale, d / Math.sqrt(imgW * imgW + imgH * imgH))
-              }
-              img.set({
-                left: left + (targetWidth - imgW * scale) / 2,
-                top: top + (targetHeight - imgH * scale) / 2,
-                angle: obj.angle ?? 0,
-                scaleX: scale,
-                scaleY: scale,
-              })
-            } else {
-              const sx = targetWidth / imgW
-              const sy = targetHeight / imgH
-              const scale = Math.max(sx, sy)
-              const cropX = (imgW * scale - targetWidth) / 2 / scale
-              const cropY = (imgH * scale - targetHeight) / 2 / scale
-              img.set({
-                left,
-                top,
-                angle: obj.angle ?? 0,
-                scaleX: scale,
-                scaleY: scale,
-                cropX,
-                cropY,
-                width: imgW - cropX * 2,
-                height: imgH - cropY * 2,
-              })
-            }
-
-            if (obj.placeholderShape === 'circle') {
-              img.set({
-                clipPath: new fabric.Circle({
-                  radius: Math.min(targetWidth, targetHeight) / 2,
-                  originX: 'center',
-                  originY: 'center',
-                }),
-              })
-            }
-
-            ;(img as any)._isPreview = true
-            img.set({ selectable: false, evented: false })
-
-            const idx = c.getObjects().indexOf(obj)
-            c.insertAt(idx + 1, img)
-            imageOverlays.push(img)
-            overlayMap.set(obj.placeholderId!, { img, imgNaturalW: imgW, imgNaturalH: imgH })
-          }
-        } catch {
-          // ignore
-        }
+      if (obj.placeholderShape === 'circle') {
+        img.set({
+          clipPath: new fabric.Circle({
+            radius: Math.min(targetWidth, targetHeight) / 2,
+            originX: 'center',
+            originY: 'center',
+          }),
+        })
       }
-    }
 
-    if (previewGenRef.current !== gen) {
-      rollback()
-      return
+      ;(img as any)._isPreview = true
+      img.set({ selectable: false, evented: false })
+
+      const idx = c.getObjects().indexOf(obj)
+      c.insertAt(idx + 1, img)
+      imageOverlays.push(img)
+      overlayMap.set(obj.placeholderId!, { img, imgNaturalW: imgW, imgNaturalH: imgH })
     }
 
     previewRef.current = { textOriginals, fontSizeOriginals, imageOverlays, overlayMap }
