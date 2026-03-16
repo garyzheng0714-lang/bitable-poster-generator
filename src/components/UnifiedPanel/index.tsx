@@ -430,14 +430,17 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                           <span className="prop-label">字重</span>
                           <Select
                             size="small"
-                            value={fontWeight === '700' ? '700' : '400'}
+                            value={fontWeight}
                             style={{ width: 96 }}
                             optionList={[
-                              { label: '加粗', value: '700' },
+                              { label: 'Light', value: '300' },
                               { label: '常规', value: '400' },
+                              { label: 'Medium', value: '500' },
+                              { label: '加粗', value: '700' },
+                              { label: 'Heavy', value: '900' },
                             ]}
                             onChange={(v) => {
-                              if (v === '400' || v === '700') {
+                              if (typeof v === 'string') {
                                 updateTextFontWeight(v, p)
                               }
                             }}

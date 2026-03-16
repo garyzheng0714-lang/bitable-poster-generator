@@ -766,7 +766,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     saveHistory(c)
   }, [activeObject, saveHistory, syncActiveObject])
 
-  const updateTextFontWeight = useCallback((weight: '400' | '700', target?: PlaceholderObject) => {
+  const updateTextFontWeight = useCallback((weight: string, target?: PlaceholderObject) => {
     const c = canvasRef.current
     const obj = target ?? activeObject
     if (!c || !obj || obj.placeholderType !== 'text') return

@@ -6,14 +6,32 @@
 /* ── Custom Fonts (served from public/fonts/) ── */
 @font-face {
   font-family: 'Alibaba PuHuiTi';
+  src: url('/fonts/Alibaba-PuHuiTi-Light.otf') format('opentype');
+  font-weight: 300;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Alibaba PuHuiTi';
   src: url('/fonts/Alibaba-PuHuiTi-Regular.otf') format('opentype');
   font-weight: 400;
   font-display: swap;
 }
 @font-face {
   font-family: 'Alibaba PuHuiTi';
+  src: url('/fonts/Alibaba-PuHuiTi-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Alibaba PuHuiTi';
   src: url('/fonts/Alibaba-PuHuiTi-Bold.otf') format('opentype');
   font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Alibaba PuHuiTi';
+  src: url('/fonts/Alibaba-PuHuiTi-Heavy.otf') format('opentype');
+  font-weight: 900;
   font-display: swap;
 }
 @font-face {
