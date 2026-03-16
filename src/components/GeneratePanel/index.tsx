@@ -146,8 +146,13 @@ export function GeneratePanel({ canvasHook, bitableHook }: GeneratePanelProps) {
     }
 
     setProgress((prev) => ({ ...prev, status: 'done', message: '' }))
+    const failCount = recordIds.length - successCount
     if (outputMode === 'attachment') {
-      Toast.success({ content: `已写入 ${successCount} 张海报到表格` })
+      if (failCount > 0) {
+        Toast.warning({ content: `已写入 ${successCount} 张海报，${failCount} 张失败` })
+      } else {
+        Toast.success({ content: `已写入 ${successCount} 张海报到表格` })
+      }
     } else {
       Toast.success({ content: `已下载 ${successCount} 张海报` })
     }

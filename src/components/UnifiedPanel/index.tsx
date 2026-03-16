@@ -222,7 +222,12 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
 
     setGenerating(false)
     setGenerationScope(null)
-    Toast.success({ content: `已写入 ${successCount} 张海报到表格` })
+    const failCount = recordIds.length - successCount
+    if (failCount > 0) {
+      Toast.warning({ content: `已写入 ${successCount} 张海报，${failCount} 张失败` })
+    } else {
+      Toast.success({ content: `已写入 ${successCount} 张海报到表格` })
+    }
   }
 
   return (

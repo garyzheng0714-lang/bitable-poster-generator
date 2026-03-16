@@ -25,6 +25,7 @@ const TEXT_COMPATIBLE_TYPES = new Set([
   FieldType.Formula,
   FieldType.CreatedTime,
   FieldType.ModifiedTime,
+  FieldType.Lookup,
 ])
 
 const IMAGE_COMPATIBLE_TYPES = new Set([FieldType.Attachment])
@@ -35,6 +36,7 @@ export function useBitable() {
   const [loading, setLoading] = useState(true)
   const [isStandalone, setIsStandalone] = useState(false)
   const currentTableIdRef = useRef<string | null>(null)
+  const currentViewIdRef = useRef<string | null>(null)
   const fieldsLoadedRef = useRef(false)
 
   const loadTable = useCallback(async (initial = false) => {
@@ -47,6 +49,8 @@ export function useBitable() {
           setTimeout(() => reject(new Error('SDK timeout')), SDK_TIMEOUT),
         ),
       ])
+
+      currentViewIdRef.current = selection?.viewId ?? null
 
       let activeTable: ITable | null = null
 
@@ -111,7 +115,20 @@ export function useBitable() {
 
   const getRecordIds = useCallback(async (): Promise<string[]> => {
     if (!table) return []
-    return table.getRecordIdList()
+    const allIds: string[] = []
+    let pageToken: number | undefined
+
+    do {
+      const resp = await table.getRecordIdListByPage({
+        pageSize: 200,
+        pageToken,
+        viewId: currentViewIdRef.current ?? undefined,
+      })
+      allIds.push(...resp.recordIds)
+      pageToken = resp.hasMore ? resp.pageToken : undefined
+    } while (pageToken)
+
+    return allIds
   }, [table])
 
   const getCellValue = useCallback(
@@ -169,8 +186,21 @@ export function useBitable() {
       if (!table) return false
       try {
         const field = await table.getFieldById(fieldId)
+
+        let existing: any[] = []
+        try {
+          const currentVal = await field.getValue(recordId)
+          if (Array.isArray(currentVal)) {
+            existing = currentVal
+          }
+        } catch {
+          // No existing value, start fresh
+        }
+
         const file = new File([blob], filename, { type: blob.type || 'image/png' })
-        await (field as any).setValue(recordId, file)
+        // SDK accepts mixed [IOpenAttachment, File] at runtime
+        const combined = [...existing, file]
+        await (field as any).setValue(recordId, combined)
         return true
       } catch (err) {
         console.error('writeAttachment failed', fieldId, recordId, err)

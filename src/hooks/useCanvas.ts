@@ -188,6 +188,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     imageOverlays: fabric.FabricObject[]
     overlayMap: Map<string, { img: fabric.FabricImage; imgNaturalW: number; imgNaturalH: number }>
   } | null>(null)
+  const previewGenRef = useRef(0)
 
   const refreshPlaceholders = useCallback(() => {
     const c = canvasRef.current
@@ -932,6 +933,8 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
     const c = canvasRef.current
     if (!c) return
 
+    const gen = ++previewGenRef.current
+
     // clear any existing preview first
     clearPreview({ skipRender: true })
 
@@ -944,7 +947,25 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
 
     const objects = c.getObjects() as PlaceholderObject[]
 
+    const rollback = () => {
+      for (const [phId, originalText] of textOriginals) {
+        const phObj = objects.find(o => o.placeholderId === phId) as unknown as TextboxWithBounds | undefined
+        if (phObj) {
+          phObj.set('text', originalText)
+          fitTextboxText(phObj, {
+            maxFontSize: fontSizeOriginals.get(phId) ?? Math.round(phObj.fontSize ?? 36),
+          })
+        }
+      }
+      for (const overlay of imageOverlays) {
+        c.remove(overlay)
+      }
+      skipSaveRef.current = false
+    }
+
     for (const obj of objects) {
+      if (previewGenRef.current !== gen) { rollback(); return }
+
       if (!obj.binding || !obj.placeholderId) continue
       const { fieldId } = obj.binding
 
@@ -957,6 +978,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
         )
         try {
           const text = await getter.getCellText(fieldId, recordId)
+          if (previewGenRef.current !== gen) { rollback(); return }
           fitTextboxText(textObj, {
             text: text || ' ',
             maxFontSize: fontSizeOriginals.get(obj.placeholderId) ?? 36,
@@ -969,8 +991,11 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
       if (obj.placeholderType === 'image') {
         try {
           const urls = await getter.getAttachmentUrls(fieldId, recordId)
+          if (previewGenRef.current !== gen) { rollback(); return }
           if (urls.length > 0) {
             const img = await fabric.FabricImage.fromURL(urls[0], { crossOrigin: 'anonymous' })
+            if (previewGenRef.current !== gen) { rollback(); return }
+
             const targetWidth = Math.max(1, obj.getScaledWidth())
             const targetHeight = Math.max(1, obj.getScaledHeight())
             const center = obj.getCenterPoint()
@@ -1039,6 +1064,11 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
       }
     }
 
+    if (previewGenRef.current !== gen) {
+      rollback()
+      return
+    }
+
     previewRef.current = { textOriginals, fontSizeOriginals, imageOverlays, overlayMap }
     skipSaveRef.current = false
     c.renderAll()
@@ -1048,11 +1078,22 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
   const deleteActive = useCallback(() => {
     const c = canvasRef.current
     if (!c || !activeObject) return
+
+    if (!c.getObjects().includes(activeObject)) {
+      c.discardActiveObject()
+      syncActiveObject(null)
+      return
+    }
+
+    if (previewRef.current) {
+      clearPreview({ skipRender: true })
+    }
+
     c.remove(activeObject)
     c.discardActiveObject()
     c.renderAll()
     syncActiveObject(null)
-  }, [activeObject, syncActiveObject])
+  }, [activeObject, syncActiveObject, clearPreview])
 
   // keyboard shortcuts
   useEffect(() => {

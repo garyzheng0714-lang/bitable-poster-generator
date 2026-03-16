@@ -603,6 +603,7 @@ body.panel-resizing {
   padding: var(--sp-2) var(--sp-3);
   border-top: 1px solid var(--border-subtle);
   flex-shrink: 0;
+  max-height: 200px;
 }
 
 .generate-summary {
@@ -754,6 +755,7 @@ body.panel-resizing {
 
   .unified-panel-actions {
     padding: var(--sp-1) var(--sp-2);
+    max-height: 180px;
   }
 }
 
