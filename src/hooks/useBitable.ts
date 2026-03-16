@@ -185,28 +185,21 @@ export function useBitable() {
     async (fieldId: string, recordId: string, blob: Blob, filename: string): Promise<boolean> => {
       if (!table) return false
       try {
+        const file = new File([blob], filename, { type: blob.type || 'image/png' })
         const field = await table.getFieldById(fieldId)
 
-        let existing: any[] = []
+        // Try appending: read existing attachments, combine with new file
         try {
           const currentVal = await field.getValue(recordId)
-          if (Array.isArray(currentVal)) {
-            existing = currentVal
+          if (Array.isArray(currentVal) && currentVal.length > 0) {
+            // Pass existing IOpenAttachment[] + new File together
+            await (field as any).setValue(recordId, [...currentVal, file])
+            return true
           }
         } catch {
-          // No existing value, start fresh
+          // getValue failed or empty, write new file only
         }
 
-        const file = new File([blob], filename, { type: blob.type || 'image/png' })
-
-        if (existing.length > 0) {
-          try {
-            await (field as any).setValue(recordId, [...existing, file])
-            return true
-          } catch {
-            // Mixed array not supported in this SDK version, fall back to overwrite
-          }
-        }
         await (field as any).setValue(recordId, file)
         return true
       } catch (err) {

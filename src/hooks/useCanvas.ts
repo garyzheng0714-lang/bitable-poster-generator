@@ -416,8 +416,8 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
         const sx = target.scaleX ?? 1
         const sy = target.scaleY ?? 1
         if (sx !== 1 || sy !== 1) {
-          const center = target.getCenterPoint()
           if (target.placeholderShape === 'circle' && target instanceof fabric.Circle) {
+            const center = target.getCenterPoint()
             const radius = target.radius ?? 0
             const diameter = Math.max(24, radius * 2 * Math.max(sx, sy))
             target.set({
@@ -425,6 +425,7 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
               scaleX: 1,
               scaleY: 1,
             })
+            target.setPositionByOrigin(center, 'center', 'center')
           } else {
             const width = Math.max(24, (target.width ?? 0) * sx)
             const height = Math.max(24, (target.height ?? 0) * sy)
@@ -435,7 +436,6 @@ export function useCanvas(containerRef: React.RefObject<HTMLDivElement | null>) 
               scaleY: 1,
             })
           }
-          target.setPositionByOrigin(center, 'center', 'center')
           target.setCoords()
           changed = true
         }

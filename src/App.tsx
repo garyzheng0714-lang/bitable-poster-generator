@@ -12,6 +12,8 @@ import './App.css'
 
 const { Title } = Typography
 
+const CANVAS_DRAFT_KEY = 'poster-canvas-draft'
+
 export default function App() {
   useTheme()
   const auth = useAuth()
@@ -22,6 +24,18 @@ export default function App() {
   const [bottomPanelHeight, setBottomPanelHeight] = useState(320)
   const dragStartRef = useRef<{ startY: number; startHeight: number } | null>(null)
   const toggleToolbar = useCallback(() => setToolbarCollapsed((v) => !v), [])
+
+  // Restore canvas draft after login redirect
+  const draftRestoredRef = useRef(false)
+  useEffect(() => {
+    if (draftRestoredRef.current || !canvasHook.canvas) return
+    draftRestoredRef.current = true
+    const draft = sessionStorage.getItem(CANVAS_DRAFT_KEY)
+    if (draft) {
+      sessionStorage.removeItem(CANVAS_DRAFT_KEY)
+      canvasHook.loadCanvasJson(draft)
+    }
+  }, [canvasHook.canvas, canvasHook.loadCanvasJson])
 
   useEffect(() => {
     const handleMove = (e: MouseEvent) => {
@@ -67,6 +81,10 @@ export default function App() {
               theme="solid"
               type="primary"
               onClick={() => {
+                const json = canvasHook.getCanvasJson()
+                if (json && json !== '{}') {
+                  sessionStorage.setItem(CANVAS_DRAFT_KEY, json)
+                }
                 window.location.href = `/api/auth/login?return_url=${encodeURIComponent(window.location.href)}`
               }}
             >
