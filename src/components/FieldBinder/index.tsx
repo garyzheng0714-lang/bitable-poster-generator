@@ -19,7 +19,7 @@ export function FieldBinder({ canvasHook, textFields, imageFields }: FieldBinder
       bindField(null, placeholder)
       return
     }
-    const fields = placeholder.placeholderType === 'text' ? textFields : imageFields
+    const fields = (placeholder.placeholderType === 'text' || placeholder.placeholderType === 'qrcode') ? textFields : imageFields
     const field = fields.find((f) => f.id === fieldId)
     if (!field) return
     bindField({ fieldId: field.id, fieldName: field.name, fieldType: field.type }, placeholder)
@@ -39,7 +39,8 @@ export function FieldBinder({ canvasHook, textFields, imageFields }: FieldBinder
     <div className="binding-list">
       {placeholders.map((p) => {
         const isText = p.placeholderType === 'text'
-        const fields = isText ? textFields : imageFields
+        const isQrCode = p.placeholderType === 'qrcode'
+        const fields = (isText || isQrCode) ? textFields : imageFields
         const isActive = activeObject?.placeholderId === p.placeholderId
 
         return (
