@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   bitable,
   FieldType,
+  type IAttachmentField,
   type IFieldMeta,
   type IOpenAttachment,
   type ITable,
@@ -206,39 +207,47 @@ export function useBitable() {
       mode: 'append' | 'overwrite' = 'append',
     ): Promise<boolean> => {
       if (!table) return false
-      try {
-        const field = (await table.getFieldById(fieldId)) as unknown as {
-          getValue: (targetRecordId: string) => Promise<unknown>
-          setValue: (targetRecordId: string, value: IOpenAttachment[]) => Promise<boolean>
+
+      const maxRetries = 3
+      const file = new File([blob], filename, { type: blob.type || 'image/png' })
+
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const field = await table.getField<IAttachmentField>(fieldId)
+
+          if (mode === 'append') {
+            const currentVal = await field.getValue(recordId)
+            const existing = Array.isArray(currentVal)
+              ? currentVal.filter(isOpenAttachment)
+              : []
+
+            const tokens = await bitable.base.batchUploadFile([file])
+            const newAttachment: IOpenAttachment = {
+              name: file.name,
+              size: file.size,
+              type: file.type || 'image/png',
+              token: tokens[0],
+              timeStamp: Date.now(),
+            }
+            await field.setValue(recordId, [...existing, newAttachment])
+          } else {
+            await field.setValue(recordId, file)
+          }
+
+          return true
+        } catch (err) {
+          const isLastAttempt = attempt === maxRetries
+          if (isLastAttempt) {
+            console.error('writeAttachment failed after retries', fieldId, recordId, err)
+            return false
+          }
+          const delay = 1000 * Math.pow(2, attempt)
+          console.warn(`writeAttachment attempt ${attempt + 1} failed, retrying in ${delay}ms`, err)
+          await new Promise((r) => setTimeout(r, delay))
         }
-
-        let existingAttachments: IOpenAttachment[] = []
-        if (mode === 'append') {
-          const currentVal = await field.getValue(recordId)
-          existingAttachments = Array.isArray(currentVal)
-            ? currentVal.filter(isOpenAttachment)
-            : []
-        }
-
-        const file = new File([blob], filename, { type: blob.type || 'image/png' })
-        const token = await bitable.base.uploadFile(file)
-        const nextAttachments: IOpenAttachment[] = [
-          ...existingAttachments,
-          {
-            name: file.name,
-            size: file.size,
-            type: file.type || 'image/png',
-            token,
-            timeStamp: Date.now(),
-          },
-        ]
-
-        await field.setValue(recordId, nextAttachments)
-        return true
-      } catch (err) {
-        console.error('writeAttachment failed', fieldId, recordId, err)
-        return false
       }
+
+      return false
     },
     [table],
   )

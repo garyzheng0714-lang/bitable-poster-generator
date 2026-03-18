@@ -119,6 +119,7 @@ export function GeneratePanel({ canvasHook, bitableHook }: GeneratePanelProps) {
     }
 
     let successCount = 0
+    const throttleMs = outputMode === 'attachment' ? 500 : 0
 
     for (const recordId of recordIds) {
       if (exitWhenCancelled()) {
@@ -149,6 +150,10 @@ export function GeneratePanel({ canvasHook, bitableHook }: GeneratePanelProps) {
             }
 
             if (ok) successCount++
+
+            if (throttleMs > 0) {
+              await new Promise((r) => setTimeout(r, throttleMs))
+            }
           } else {
             downloadBlob(blob, `poster-${recordId}.png`)
             successCount++
