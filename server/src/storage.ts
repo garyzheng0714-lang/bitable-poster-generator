@@ -3,6 +3,7 @@ import pg from 'pg';
 export interface UserRow {
   open_id: string;
   union_id: string | null;
+  tenant_key: string | null;
   name: string;
   avatar_url: string | null;
   email: string | null;
@@ -26,6 +27,8 @@ export interface AppDataRow {
   open_id: string;
   data_key: string;
   data_value: string;
+  visibility: string;
+  tenant_key: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -45,22 +48,24 @@ export function initDatabase(): pg.Pool {
 export async function upsertUser(user: {
   openId: string;
   unionId?: string | null;
+  tenantKey?: string | null;
   name: string;
   avatarUrl?: string | null;
   email?: string | null;
 }): Promise<UserRow> {
   const db = initDatabase();
   const { rows } = await db.query(
-    `INSERT INTO users (open_id, union_id, name, avatar_url, email, updated_at)
-     VALUES ($1, $2, $3, $4, $5, NOW())
+    `INSERT INTO users (open_id, union_id, tenant_key, name, avatar_url, email, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, NOW())
      ON CONFLICT(open_id) DO UPDATE SET
        union_id   = EXCLUDED.union_id,
+       tenant_key = COALESCE(EXCLUDED.tenant_key, users.tenant_key),
        name       = EXCLUDED.name,
        avatar_url = EXCLUDED.avatar_url,
        email      = EXCLUDED.email,
        updated_at = NOW()
      RETURNING *`,
-    [user.openId, user.unionId ?? null, user.name, user.avatarUrl ?? null, user.email ?? null]
+    [user.openId, user.unionId ?? null, user.tenantKey ?? null, user.name, user.avatarUrl ?? null, user.email ?? null]
   );
   return rows[0] as UserRow;
 }
@@ -132,6 +137,22 @@ export async function listAppData(projectId: string, openId: string, keyPrefix?:
   return rows as AppDataRow[];
 }
 
+export async function listTeamAppData(projectId: string, tenantKey: string, keyPrefix?: string): Promise<AppDataRow[]> {
+  const db = initDatabase();
+  if (keyPrefix) {
+    const { rows } = await db.query(
+      `SELECT * FROM app_data WHERE project_id = $1 AND tenant_key = $2 AND visibility = 'team' AND data_key LIKE $3 ORDER BY updated_at DESC`,
+      [projectId, tenantKey, keyPrefix + '%']
+    );
+    return rows as AppDataRow[];
+  }
+  const { rows } = await db.query(
+    `SELECT * FROM app_data WHERE project_id = $1 AND tenant_key = $2 AND visibility = 'team' ORDER BY updated_at DESC`,
+    [projectId, tenantKey]
+  );
+  return rows as AppDataRow[];
+}
+
 export async function getAppData(projectId: string, openId: string, dataKey: string): Promise<AppDataRow | undefined> {
   const db = initDatabase();
   const { rows } = await db.query(
@@ -146,16 +167,20 @@ export async function putAppData(item: {
   openId: string;
   dataKey: string;
   dataValue: string;
+  visibility?: string;
+  tenantKey?: string | null;
 }): Promise<AppDataRow> {
   const db = initDatabase();
   const { rows } = await db.query(
-    `INSERT INTO app_data (project_id, open_id, data_key, data_value, updated_at)
-     VALUES ($1, $2, $3, $4, NOW())
+    `INSERT INTO app_data (project_id, open_id, data_key, data_value, visibility, tenant_key, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, NOW())
      ON CONFLICT(project_id, open_id, data_key) DO UPDATE SET
        data_value = EXCLUDED.data_value,
+       visibility = EXCLUDED.visibility,
+       tenant_key = EXCLUDED.tenant_key,
        updated_at = NOW()
      RETURNING *`,
-    [item.projectId, item.openId, item.dataKey, item.dataValue]
+    [item.projectId, item.openId, item.dataKey, item.dataValue, item.visibility ?? 'private', item.tenantKey ?? null]
   );
   return rows[0] as AppDataRow;
 }
