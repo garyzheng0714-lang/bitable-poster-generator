@@ -53,16 +53,20 @@ export async function logout(): Promise<void> {
 
 const PROJECT_ID = 'poster-generator';
 
-export async function listTemplates(): Promise<{ items: Array<{ data_key: string; data_value: string; updated_at: string }> }> {
+export async function listTemplates(): Promise<{ items: Array<{ data_key: string; data_value: string; visibility?: string; updated_at: string }> }> {
   return request('GET', `/data/${PROJECT_ID}?prefix=template:`);
+}
+
+export async function listTeamTemplates(): Promise<{ items: Array<{ data_key: string; data_value: string; open_id?: string; updated_at: string }> }> {
+  return request('GET', `/data/${PROJECT_ID}/team?prefix=template:`);
 }
 
 export async function getTemplate(id: string): Promise<{ item: { data_value: string } }> {
   return request('GET', `/data/${PROJECT_ID}/template:${id}`);
 }
 
-export async function saveTemplateToServer(id: string, value: string): Promise<void> {
-  await request('PUT', `/data/${PROJECT_ID}/template:${id}`, { value });
+export async function saveTemplateToServer(id: string, value: string, visibility?: 'private' | 'team'): Promise<void> {
+  await request('PUT', `/data/${PROJECT_ID}/template:${id}`, { value, visibility });
 }
 
 export async function deleteTemplateFromServer(id: string): Promise<void> {

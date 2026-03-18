@@ -15,6 +15,7 @@ import type { useCanvas } from '../../hooks/useCanvas'
 import type { PlaceholderObject } from '../../hooks/useCanvas'
 import type { useBitable } from '../../hooks/useBitable'
 import { generatePosterForRecord, downloadBlob, dataUrlToBlob } from '../../services/posterGenerator'
+import { downloadAsZip } from '../../utils/zipExport'
 
 const FONT_OPTIONS = [
   { label: '系统默认', value: 'PingFang SC, Microsoft YaHei, sans-serif' },
@@ -70,6 +71,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
   } = bitableHook
 
   const [targetFieldId, setTargetFieldId] = useState<string | undefined>()
+  const [outputMode, setOutputMode] = useState<'attachment' | 'zip'>('attachment')
   const [writeMode, setWriteMode] = useState<'append' | 'overwrite'>('append')
   const [generating, setGenerating] = useState(false)
   const [generationScope, setGenerationScope] = useState<'selected' | 'all' | null>(null)
@@ -85,7 +87,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
 
   const allBound = placeholders.length > 0 && placeholders.every((p) => !!p.binding)
   const missingBindings = placeholders.filter((p) => !p.binding)
-  const canGenerateToTable = allBound && !!effectiveTargetFieldId && !generating
+  const canGenerate = allBound && !generating && (outputMode === 'zip' || !!effectiveTargetFieldId)
 
   // Auto-preview when bitable selection changes
   useEffect(() => {
@@ -136,7 +138,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
       bindField(null, placeholder)
       return
     }
-    const fields = placeholder.placeholderType === 'text' ? textFields : imageFields
+    const fields = (placeholder.placeholderType === 'text' || placeholder.placeholderType === 'qrcode') ? textFields : imageFields
     const field = fields.find((f) => f.id === fieldId)
     if (!field) return
     bindField({ fieldId: field.id, fieldName: field.name, fieldType: field.type }, placeholder)
@@ -179,7 +181,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
       return
     }
 
-    if (!effectiveTargetFieldId) {
+    if (outputMode === 'attachment' && !effectiveTargetFieldId) {
       Toast.warning({ content: '请选择目标附件字段' })
       return
     }
@@ -219,10 +221,10 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
     }
 
     let successCount = 0
+    const zipEntries: Array<{ blob: Blob; filename: string }> = []
+
     for (const recordId of recordIds) {
-      if (exitWhenCancelled()) {
-        return
-      }
+      if (exitWhenCancelled()) return
 
       try {
         const blob = await generatePosterForRecord(canvasJson, recordId, {
@@ -230,24 +232,23 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
           getAttachmentUrls,
         }, 2, () => cancelledRef.current)
 
-        if (exitWhenCancelled()) {
-          return
-        }
+        if (exitWhenCancelled()) return
 
         if (blob) {
-          const ok = await writeAttachment(
-            effectiveTargetFieldId,
-            recordId,
-            blob,
-            `poster-${recordId}.png`,
-            writeMode,
-          )
-
-          if (exitWhenCancelled()) {
-            return
+          if (outputMode === 'zip') {
+            zipEntries.push({ blob, filename: `poster-${recordId}.png` })
+            successCount++
+          } else {
+            const ok = await writeAttachment(
+              effectiveTargetFieldId!,
+              recordId,
+              blob,
+              `poster-${recordId}.png`,
+              writeMode,
+            )
+            if (exitWhenCancelled()) return
+            if (ok) successCount++
           }
-
-          if (ok) successCount++
         }
         setProgress((prev) => ({ ...prev, current: prev.current + 1 }))
       } catch (err) {
@@ -256,10 +257,16 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
       }
     }
 
+    if (outputMode === 'zip' && zipEntries.length > 0) {
+      await downloadAsZip(zipEntries)
+    }
+
     setGenerating(false)
     setGenerationScope(null)
     const failCount = recordIds.length - successCount
-    if (failCount > 0) {
+    if (outputMode === 'zip') {
+      Toast.success({ content: `已打包 ${successCount} 张海报为 ZIP` })
+    } else if (failCount > 0) {
       Toast.warning({ content: `已写入 ${successCount} 张海报，${failCount} 张失败` })
     } else {
       Toast.success({ content: `已写入 ${successCount} 张海报到表格` })
@@ -276,8 +283,9 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
         ) : (
           placeholders.map((p) => {
             const isText = p.placeholderType === 'text'
+            const isQrCode = p.placeholderType === 'qrcode'
             const isActive = activeObject?.placeholderId === p.placeholderId
-            const fields = isText ? textFields : imageFields
+            const fields = (isText || isQrCode) ? textFields : imageFields
             const isCircle = p.placeholderShape === 'circle'
 
             const textObj = p as unknown as fabric.Textbox
@@ -304,7 +312,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
             const metricH = isText ? textBoxHeight : (isCircle ? diameter : imgH)
 
             const label = p.binding?.fieldName
-              ?? (isText ? '文字' : isCircle ? 'Logo' : '图片')
+              ?? (isQrCode ? '二维码' : isText ? '文字' : isCircle ? 'Logo' : '图片')
 
             return (
               <div
@@ -319,10 +327,11 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                       canvas?.requestRenderAll()
                     }}
                   >
-                    <span className={`ph-badge ${isText ? 'text' : 'image'}`}>
-                      {isText ? 'T' : isCircle ? 'C' : 'I'}
+                    <span className={`ph-badge ${isText ? 'text' : isQrCode ? 'qrcode' : 'image'}`}>
+                      {isQrCode ? 'Q' : isText ? 'T' : isCircle ? 'C' : 'I'}
                     </span>
                     <span className="ph-name">{label}</span>
+                    {p.placeholderLocked && <span className="ph-lock-icon">🔒</span>}
                   </div>
                   <Select
                     size="small"
@@ -606,7 +615,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                 : '已完成绑定，选择附件字段后可直接写入表格。'}
             </div>
 
-            <div className="generate-field-row">
+            {outputMode === 'attachment' && <div className="generate-field-row">
               <Select
                 size="small"
                 placeholder="选择写入的附件字段"
@@ -632,20 +641,35 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                 }}
                 style={{ flexShrink: 0 }}
               />
-            </div>
+            </div>}
 
             <div className="generate-mode-row">
-              <span className="generate-mode-label">写入方式</span>
+              <span className="generate-mode-label">输出方式</span>
               <RadioGroup
-                value={writeMode}
-                onChange={(e) => setWriteMode(e.target.value as 'append' | 'overwrite')}
+                value={outputMode}
+                onChange={(e) => setOutputMode(e.target.value as 'attachment' | 'zip')}
                 direction="horizontal"
                 type="button"
               >
-                <Radio value="append">追加</Radio>
-                <Radio value="overwrite">覆盖</Radio>
+                <Radio value="attachment">写入表格</Radio>
+                <Radio value="zip">下载 ZIP</Radio>
               </RadioGroup>
             </div>
+
+            {outputMode === 'attachment' && (
+              <div className="generate-mode-row">
+                <span className="generate-mode-label">写入方式</span>
+                <RadioGroup
+                  value={writeMode}
+                  onChange={(e) => setWriteMode(e.target.value as 'append' | 'overwrite')}
+                  direction="horizontal"
+                  type="button"
+                >
+                  <Radio value="append">追加</Radio>
+                  <Radio value="overwrite">覆盖</Radio>
+                </RadioGroup>
+              </div>
+            )}
 
             <div className="generate-bar">
               <Button
@@ -654,7 +678,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                 icon={generating && generationScope === 'selected' ? undefined : <IconPlay />}
                 loading={generating && generationScope === 'selected'}
                 onClick={() => { void handleGenerate('selected') }}
-                disabled={!canGenerateToTable}
+                disabled={!canGenerate}
                 className="generate-split-button"
                 style={{ flex: 1 }}
                 size="small"
@@ -669,7 +693,7 @@ export function UnifiedPanel({ canvasHook, bitableHook }: Props) {
                 icon={generating && generationScope === 'all' ? undefined : <IconDownload />}
                 loading={generating && generationScope === 'all'}
                 onClick={() => { void handleGenerate('all') }}
-                disabled={!canGenerateToTable}
+                disabled={!canGenerate}
                 className="generate-split-button"
                 style={{ flex: 1 }}
                 size="small"

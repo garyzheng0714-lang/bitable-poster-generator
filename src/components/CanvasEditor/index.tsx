@@ -48,6 +48,7 @@ export function CanvasEditor({ canvasHook }: CanvasEditorProps) {
       if (type === 'text') canvasHook.addTextPlaceholder(point)
       if (type === 'image') canvasHook.addImagePlaceholder(point)
       if (type === 'logo') canvasHook.addLogoPlaceholder(point)
+      if (type === 'qrcode') canvasHook.addQrCodePlaceholder(point)
     },
     [canvasHook],
   )

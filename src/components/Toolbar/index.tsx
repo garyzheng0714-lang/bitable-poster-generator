@@ -1,5 +1,5 @@
 import { Button, Tooltip } from '@douyinfe/semi-ui'
-import { IconUndo, IconRedo, IconFont, IconImage, IconDelete } from '@douyinfe/semi-icons'
+import { IconUndo, IconRedo, IconFont, IconImage, IconDelete, IconLock, IconUnlock } from '@douyinfe/semi-icons'
 import type { useCanvas } from '../../hooks/useCanvas'
 
 interface ToolbarProps {
@@ -7,8 +7,10 @@ interface ToolbarProps {
 }
 
 export function Toolbar({ canvasHook }: ToolbarProps) {
-  const { addTextPlaceholder, addImagePlaceholder, addLogoPlaceholder, deleteActive, undo, redo, activeObject } =
+  const { addTextPlaceholder, addImagePlaceholder, addLogoPlaceholder, addQrCodePlaceholder, toggleLock, deleteActive, undo, redo, activeObject } =
     canvasHook
+
+  const locked = activeObject?.placeholderLocked === true
 
   const handleDragStart = (e: React.DragEvent, type: string) => {
     e.dataTransfer.setData('placeholder-type', type)
@@ -48,6 +50,28 @@ export function Toolbar({ canvasHook }: ToolbarProps) {
             onDragStart={(e) => handleDragStart(e, 'logo')}
           />
         </Tooltip>
+        <Tooltip content="添加二维码" position="right">
+          <Button
+            icon={
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ display: 'block' }}>
+                <rect x="1" y="1" width="5" height="5" stroke="currentColor" strokeWidth="1.2" />
+                <rect x="8" y="1" width="5" height="5" stroke="currentColor" strokeWidth="1.2" />
+                <rect x="1" y="8" width="5" height="5" stroke="currentColor" strokeWidth="1.2" />
+                <rect x="3" y="3" width="1.5" height="1.5" fill="currentColor" />
+                <rect x="10" y="3" width="1.5" height="1.5" fill="currentColor" />
+                <rect x="3" y="10" width="1.5" height="1.5" fill="currentColor" />
+                <rect x="9" y="9" width="1.5" height="1.5" fill="currentColor" />
+                <rect x="11.5" y="9" width="1.5" height="1.5" fill="currentColor" />
+                <rect x="9" y="11.5" width="1.5" height="1.5" fill="currentColor" />
+                <rect x="11.5" y="11.5" width="1.5" height="1.5" fill="currentColor" />
+              </svg>
+            }
+            theme="borderless"
+            onClick={() => addQrCodePlaceholder()}
+            draggable
+            onDragStart={(e) => handleDragStart(e, 'qrcode')}
+          />
+        </Tooltip>
       </div>
       <div className="toolbar-divider" />
       <div className="toolbar-group">
@@ -60,6 +84,14 @@ export function Toolbar({ canvasHook }: ToolbarProps) {
       </div>
       <div className="toolbar-divider" />
       <div className="toolbar-group">
+        <Tooltip content={locked ? '解锁' : '锁定'} position="right">
+          <Button
+            icon={locked ? <IconLock /> : <IconUnlock />}
+            theme="borderless"
+            onClick={() => toggleLock()}
+            disabled={!activeObject}
+          />
+        </Tooltip>
         <Tooltip content="删除" position="right">
           <Button
             icon={<IconDelete />}

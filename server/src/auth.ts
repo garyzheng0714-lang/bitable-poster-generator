@@ -72,6 +72,7 @@ export interface OAuthTokenResponse {
   refresh_expires_in: number;
   open_id: string;
   union_id?: string;
+  tenant_key?: string;
 }
 
 export async function exchangeCodeForToken(

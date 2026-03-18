@@ -1,12 +1,14 @@
 import { useRef, useState, useCallback } from 'react'
-import { Button, Empty, Modal, Toast } from '@douyinfe/semi-ui'
+import { Button, Empty, Modal, Toast, Tabs, TabPane, Switch } from '@douyinfe/semi-ui'
 import { IconUpload } from '@douyinfe/semi-icons'
 import type { useCanvas } from '../../hooks/useCanvas'
 import type { TemplateConfig } from '../../types'
+import { getAuthToken } from '../../services/api'
 import {
   deleteTemplate,
   generateId,
   loadAllTemplates,
+  loadTeamTemplates,
   saveTemplate,
 } from '../../utils/canvasSerializer'
 
@@ -17,12 +19,20 @@ interface TemplateManagerProps {
 export function TemplateManager({ canvasHook }: TemplateManagerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [visible, setVisible] = useState(false)
-  const [templates, setTemplates] = useState<TemplateConfig[]>([])
+  const [myTemplates, setMyTemplates] = useState<TemplateConfig[]>([])
+  const [teamTemplates, setTeamTemplates] = useState<TemplateConfig[]>([])
+  const [shareToTeam, setShareToTeam] = useState(false)
+
+  const isLoggedIn = !!getAuthToken()
 
   const refreshTemplates = useCallback(async () => {
-    const list = await loadAllTemplates()
-    setTemplates(list)
-  }, [])
+    const mine = await loadAllTemplates()
+    setMyTemplates(mine)
+    if (isLoggedIn) {
+      const team = await loadTeamTemplates()
+      setTeamTemplates(team)
+    }
+  }, [isLoggedIn])
 
   const makeTemplateName = () => {
     const now = new Date()
@@ -45,6 +55,7 @@ export function TemplateManager({ canvasHook }: TemplateManagerProps) {
       return
     }
 
+    const visibility = shareToTeam ? 'team' : 'private'
     const template: TemplateConfig = {
       id: generateId(),
       name: makeTemplateName(),
@@ -54,12 +65,13 @@ export function TemplateManager({ canvasHook }: TemplateManagerProps) {
       placeholders: [],
       canvasJson,
       thumbnailDataUrl: canvasHook.exportAsDataUrl(0.2) ?? undefined,
+      visibility,
       updatedAt: new Date().toISOString(),
     }
 
-    await saveTemplate(template)
+    await saveTemplate(template, visibility)
     await refreshTemplates()
-    Toast.success({ content: '模板已保存' })
+    Toast.success({ content: visibility === 'team' ? '模板已保存并分享给团队' : '模板已保存' })
   }
 
   const handleLoadTemplate = async (template: TemplateConfig) => {
@@ -73,6 +85,66 @@ export function TemplateManager({ canvasHook }: TemplateManagerProps) {
     if (!ok) return
     await deleteTemplate(template.id)
     await refreshTemplates()
+  }
+
+  const renderTemplateList = (templates: TemplateConfig[], showDelete: boolean) => {
+    if (templates.length === 0) {
+      return (
+        <Empty description={showDelete ? '暂无模板，先在画布编辑后点击"保存模板"' : '团队暂无共享模板'} />
+      )
+    }
+
+    return (
+      <div className="template-list">
+        {templates
+          .slice()
+          .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
+          .map((template) => (
+            <div className="template-card" key={template.id}>
+              <div className="template-thumb">
+                {template.thumbnailDataUrl ? (
+                  <img src={template.thumbnailDataUrl} alt={template.name} />
+                ) : (
+                  <div className="template-thumb-empty">无预览</div>
+                )}
+              </div>
+
+              <div className="template-card-meta">
+                <div className="template-card-title">
+                  {template.name}
+                  {template.visibility === 'team' && (
+                    <span className="template-team-badge">团队</span>
+                  )}
+                </div>
+                <div className="template-card-size">
+                  {template.width} x {template.height}
+                </div>
+              </div>
+
+              <div className="template-card-actions">
+                <Button
+                  size="small"
+                  theme="solid"
+                  type="primary"
+                  onClick={() => handleLoadTemplate(template)}
+                >
+                  加载
+                </Button>
+                {showDelete && (
+                  <Button
+                    size="small"
+                    theme="borderless"
+                    type="danger"
+                    onClick={() => handleDeleteTemplate(template)}
+                  >
+                    删除
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+      </div>
+    )
   }
 
   return (
@@ -117,55 +189,29 @@ export function TemplateManager({ canvasHook }: TemplateManagerProps) {
         footer={null}
         className="template-modal"
       >
-        {templates.length === 0 && (
-          <Empty
-            description="暂无模板，先在画布编辑后点击“保存模板”"
-          />
-        )}
-
-        {templates.length > 0 && (
-          <div className="template-list">
-            {templates
-              .slice()
-              .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
-              .map((template) => (
-                <div className="template-card" key={template.id}>
-                  <div className="template-thumb">
-                    {template.thumbnailDataUrl ? (
-                      <img src={template.thumbnailDataUrl} alt={template.name} />
-                    ) : (
-                      <div className="template-thumb-empty">无预览</div>
-                    )}
-                  </div>
-
-                  <div className="template-card-meta">
-                    <div className="template-card-title">{template.name}</div>
-                    <div className="template-card-size">
-                      {template.width} x {template.height}
-                    </div>
-                  </div>
-
-                  <div className="template-card-actions">
-                    <Button
-                      size="small"
-                      theme="solid"
-                      type="primary"
-                      onClick={() => handleLoadTemplate(template)}
-                    >
-                      加载
-                    </Button>
-                    <Button
-                      size="small"
-                      theme="borderless"
-                      type="danger"
-                      onClick={() => handleDeleteTemplate(template)}
-                    >
-                      删除
-                    </Button>
-                  </div>
-                </div>
-              ))}
-          </div>
+        {isLoggedIn ? (
+          <>
+            <Tabs type="line" size="small">
+              <TabPane tab="我的模板" itemKey="mine">
+                {renderTemplateList(myTemplates, true)}
+              </TabPane>
+              <TabPane tab="团队模板" itemKey="team">
+                {renderTemplateList(teamTemplates, false)}
+              </TabPane>
+            </Tabs>
+            <div className="template-share-toggle">
+              <Switch
+                size="small"
+                checked={shareToTeam}
+                onChange={setShareToTeam}
+              />
+              <span className="template-share-label">
+                保存时分享给团队
+              </span>
+            </div>
+          </>
+        ) : (
+          renderTemplateList(myTemplates, true)
         )}
       </Modal>
     </div>

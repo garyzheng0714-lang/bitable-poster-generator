@@ -17,9 +17,11 @@ import {
   upsertSession,
   deleteSession,
   listAppData,
+  listTeamAppData,
   getAppData,
   putAppData,
   deleteAppData,
+  getUserByOpenId,
 } from './storage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -106,6 +108,7 @@ app.get('/api/auth/callback', async (req, res) => {
   const user = await upsertUser({
     openId: userInfo.open_id,
     unionId: userInfo.union_id,
+    tenantKey: tokenData.tenant_key,
     name: userInfo.name,
     avatarUrl: userInfo.avatar_url,
     email: userInfo.email,
@@ -147,6 +150,18 @@ app.get('/api/data/:projectId', authMiddleware, async (req, res) => {
   res.json({ items });
 });
 
+app.get('/api/data/:projectId/team', authMiddleware, async (req, res) => {
+  const { projectId } = req.params;
+  const prefix = req.query.prefix as string | undefined;
+  const user = await getUserByOpenId(req.user!.open_id);
+  if (!user?.tenant_key) {
+    res.json({ items: [] });
+    return;
+  }
+  const items = await listTeamAppData(projectId, user.tenant_key, prefix);
+  res.json({ items });
+});
+
 app.get('/api/data/:projectId/:dataKey', authMiddleware, async (req, res) => {
   const { projectId, dataKey } = req.params;
   const item = await getAppData(projectId, req.user!.open_id, dataKey);
@@ -159,16 +174,19 @@ app.get('/api/data/:projectId/:dataKey', authMiddleware, async (req, res) => {
 
 app.put('/api/data/:projectId/:dataKey', authMiddleware, async (req, res) => {
   const { projectId, dataKey } = req.params;
-  const { value } = req.body;
+  const { value, visibility } = req.body;
   if (value === undefined) {
     res.status(400).json({ error: 'value required' });
     return;
   }
+  const user = await getUserByOpenId(req.user!.open_id);
   const item = await putAppData({
     projectId,
     openId: req.user!.open_id,
     dataKey,
     dataValue: typeof value === 'string' ? value : JSON.stringify(value),
+    visibility: visibility === 'team' ? 'team' : 'private',
+    tenantKey: user?.tenant_key,
   });
   res.json({ item });
 });

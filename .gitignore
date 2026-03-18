@@ -34,3 +34,4 @@ screenshots/
 test-template*.png
 *.png
 !src/**/*.png
+.gstack/
