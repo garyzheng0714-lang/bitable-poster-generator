@@ -1,5 +1,5 @@
 import type { TemplateConfig } from '../types'
-import { getAuthToken, listTemplates, saveTemplateToServer, deleteTemplateFromServer } from '../services/api'
+import { getAuthToken, listTemplates, listTeamTemplates, saveTemplateToServer, deleteTemplateFromServer } from '../services/api'
 
 const STORAGE_KEY = 'poster-generator-templates'
 
@@ -38,16 +38,37 @@ export async function loadAllTemplates(): Promise<TemplateConfig[]> {
   if (!isLoggedIn()) return loadLocal()
   try {
     const { items } = await listTemplates()
-    return items.map((item) => JSON.parse(item.data_value) as TemplateConfig)
+    return items.map((item) => {
+      const config = JSON.parse(item.data_value) as TemplateConfig
+      config.visibility = item.visibility as 'private' | 'team' | undefined
+      return config
+    })
   } catch {
     return loadLocal()
   }
 }
 
-export async function saveTemplate(template: TemplateConfig): Promise<void> {
-  saveLocal(template) // always keep local copy
+export async function loadTeamTemplates(): Promise<TemplateConfig[]> {
+  if (!isLoggedIn()) return []
+  try {
+    const { items } = await listTeamTemplates()
+    return items.map((item) => {
+      const config = JSON.parse(item.data_value) as TemplateConfig
+      config.visibility = 'team'
+      return config
+    })
+  } catch {
+    return []
+  }
+}
+
+export async function saveTemplate(
+  template: TemplateConfig,
+  visibility: 'private' | 'team' = 'private',
+): Promise<void> {
+  saveLocal(template)
   if (isLoggedIn()) {
-    await saveTemplateToServer(template.id, JSON.stringify(template))
+    await saveTemplateToServer(template.id, JSON.stringify(template), visibility)
   }
 }
 

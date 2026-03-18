@@ -36,6 +36,7 @@ export interface TemplateConfig {
   placeholders: PlaceholderConfig[]
   canvasJson: string
   thumbnailDataUrl?: string
+  visibility?: 'private' | 'team'
   updatedAt?: string
 }
 
